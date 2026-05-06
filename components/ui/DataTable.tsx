@@ -14,6 +14,7 @@ type Props<T> = {
   columns: ColumnConfig<T>[];
   data: T[];
   onViewAll?: () => void;
+  loading?: boolean;
 };
 
 /** Nettoie le HTML et rend une valeur de cellule cliquable si email/téléphone */
@@ -61,6 +62,7 @@ export default function DataTable<T extends { id: string | number }>({
   columns = [],
   data = [],
   onViewAll,
+  loading = false,
 }: Props<T>) {
   const [search, setSearch] = useState("");
   const t = (key: string) => key === "table.search" ? "Rechercher..." : "Aucune donnée trouvée."; // Mock translation
@@ -99,7 +101,13 @@ export default function DataTable<T extends { id: string | number }>({
           </thead>
 
           <tbody className="divide-y divide-slate-50">
-            {filteredData.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={columns.length} className="py-10 text-center text-muted-foreground text-sm italic">
+                  Chargement des données...
+                </td>
+              </tr>
+            ) : filteredData.length > 0 ? (
               filteredData.map((item) => (
                 <tr key={item.id} className="group transition-colors hover:bg-muted/50">
                   {columns.map((col) => (
