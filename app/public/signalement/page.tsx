@@ -1,3 +1,9 @@
+"use client";
+
+import { useState } from "react";
+import { useCommunesList } from "@/lib/hooks/useCommunes";
+import { signalementsApi } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { FormField, Input, Select } from "@/components/ui/ReusableForm";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -110,7 +116,7 @@ export default function SignalementPage() {
                         className="pl-10"
                       >
                         <option value="">Sélectionner la commune...</option>
-                        {communes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                        {communes.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                       </Select>
                       <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     </div>

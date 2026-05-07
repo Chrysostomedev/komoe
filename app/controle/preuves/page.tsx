@@ -1,9 +1,15 @@
+"use client";
+
 import StatsCard from "@/components/ui/StatsCard";
 import { ShieldCheck, ExternalLink, Copy, Loader2, Globe, Lock, ShieldAlert, Cpu } from "lucide-react";
+import { useTransactionsList } from "@/lib/hooks/useTransactions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { formatDateShort, formatFCFA, polygonscanTxUrl, ipfsFileUrl } from "@/lib/utils";
 
 export default function PreuvesPage() {
   const { transactions, loading } = useTransactionsList();
-  const txs = transactions.filter((t) => t.blockchain_tx_hash_validation);
+  const txs = transactions.filter((t: any) => t.blockchain_tx_hash_validation);
 
   const copyToClipboard = (text: string) => {
     if (typeof navigator !== "undefined") navigator.clipboard.writeText(text);
@@ -28,8 +34,8 @@ export default function PreuvesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard label="Preuves On-Chain" value={txs.length} icon={<Lock className="text-primary" />} />
-        <StatsCard label="Documents IPFS" value={txs.filter(t => t.ipfs_hash).length} icon={<Globe className="text-teal-500" />} />
-        <StatsCard label="Volume Audité" value={txs.reduce((s, t) => s + t.montant_fcfa, 0)} isCurrency icon={<ShieldAlert className="text-amber-500" />} />
+        <StatsCard label="Documents IPFS" value={txs.filter((t: any) => t.ipfs_hash).length} icon={<Globe className="text-teal-500" />} />
+        <StatsCard label="Volume Audité" value={txs.reduce((s: any, t: any) => s + t.montant_fcfa, 0)} isCurrency icon={<ShieldAlert className="text-amber-500" />} />
         <StatsCard label="Uptime Réseau" value="99.9%" icon={<Cpu className="text-blue-500" />} />
       </div>
 
@@ -42,7 +48,7 @@ export default function PreuvesPage() {
         </CardHeader>
         <CardContent className="p-8 space-y-6">
           {loading && <div className="flex flex-col items-center py-20 gap-3 text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin text-primary" /> <span className="text-xs font-black uppercase tracking-widest">Synchronisation ledger...</span></div>}
-          {!loading && txs.map((tx) => (
+          {!loading && txs.map((tx: any) => (
             <div key={tx.id} className="group p-6 rounded-[24px] bg-white border border-border hover:shadow-xl transition-all hover:border-primary/30">
               <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                 <div>

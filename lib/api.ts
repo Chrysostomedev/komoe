@@ -112,7 +112,7 @@ export interface UserProfile {
   role: string; profession: string; commune: number | null; commune_nom: string | null;
   wallet_address: string; journaliste_verifie: boolean;
   email_verifie: boolean; avatar: string; reputation_score: number;
-  is_active: boolean; date_joined: string;
+  is_active: boolean; date_joined: string; telephone?: string;
 }
 
 export const authApi = {

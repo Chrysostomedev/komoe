@@ -1,15 +1,22 @@
+"use client";
+
 import StatsCard from "@/components/ui/StatsCard";
 import { AlertTriangle, Clock, XCircle, TrendingDown, Loader2, ShieldAlert, Zap, Search } from "lucide-react";
+import { useCommunesList } from "@/lib/hooks/useCommunes";
+import { useTransactionsList } from "@/lib/hooks/useTransactions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { formatDateShort, formatFCFA } from "@/lib/utils";
 
 export default function AlertesPage() {
   const { communes, loading: lcLoading } = useCommunesList();
   const { transactions, loading: ltLoading } = useTransactionsList();
   const loading = lcLoading || ltLoading;
 
-  const communesBas = communes.filter((c) => c.score_transparence < 50);
-  const enAttente = transactions.filter((t) => t.statut === "SOUMIS");
-  const rejetes = transactions.filter((t) => t.statut === "REJETE");
-  const brouillons = transactions.filter((t) => t.statut === "BROUILLON");
+  const communesBas = communes.filter((c: any) => c.score_transparence < 50);
+  const enAttente = transactions.filter((t: any) => t.statut === "SOUMIS");
+  const rejetes = transactions.filter((t: any) => t.statut === "REJETE");
+  const brouillons = transactions.filter((t: any) => t.statut === "BROUILLON");
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -51,7 +58,7 @@ export default function AlertesPage() {
                  <p className="text-sm font-bold text-muted-foreground">Aucune commune en alerte critique.</p>
               </div>
             )}
-            {!loading && communesBas.sort((a, b) => a.score_transparence - b.score_transparence).map((c) => (
+            {!loading && communesBas.sort((a: any, b: any) => a.score_transparence - b.score_transparence).map((c: any) => (
               <div key={c.id} className="group flex items-center justify-between p-5 bg-white rounded-2xl border border-rose-100 hover:shadow-lg transition-all hover:border-rose-300">
                 <div className="space-y-1">
                   <p className="font-black text-foreground group-hover:text-rose-600 transition-colors">{c.nom}</p>
@@ -85,7 +92,7 @@ export default function AlertesPage() {
                  <p className="text-sm font-bold text-muted-foreground">Flux de validation à jour.</p>
               </div>
             )}
-            {!loading && enAttente.map((tx) => (
+            {!loading && enAttente.map((tx: any) => (
               <div key={tx.id} className="flex items-center justify-between p-5 bg-card border border-border rounded-2xl hover:bg-muted/30 transition-all">
                 <div className="min-w-0">
                   <p className="font-black text-foreground truncate">{tx.description}</p>

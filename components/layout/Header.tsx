@@ -166,7 +166,7 @@ export const Header = ({ role, onOpenMobile }: HeaderProps) => {
                     {n.desc}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="ghost" className="text-[9px] font-black uppercase tracking-tighter px-0 hover:bg-transparent">
+                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter px-0 hover:bg-transparent border-transparent bg-transparent">
                        Voir les détails →
                     </Badge>
                   </div>
