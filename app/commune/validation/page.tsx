@@ -9,6 +9,8 @@ import { transactionsApi } from "@/lib/api";
 import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash } from "@/lib/constants";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useWriteContract, useAccount } from "wagmi";
+import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
 import { FormField, Input, RichTextEditor } from "@/components/ui/ReusableForm";
@@ -16,21 +18,54 @@ import { FormField, Input, RichTextEditor } from "@/components/ui/ReusableForm";
 export default function ValidationPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { address, isConnected } = useAccount();
   const communeId = user?.commune ?? null;
   const { transactions, loading, error, refetch } = useCommuneTransactions(communeId);
   
+  const { writeContractAsync } = useWriteContract();
   const [signingId, setSigningId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectMotif, setRejectMotif] = useState("");
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   const enAttente = transactions.filter((t) => t.statut === "SOUMIS");
   const confirmes = transactions.filter((t) => t.statut === "VALIDE");
 
-  const handleValider = async (id: string) => {
-    setSigningId(id);
+  const handleValider = async (tx: any) => {
+    if (!isConnected) {
+      alert("Veuillez connecter votre portefeuille MetaMask en haut à droite.");
+      return;
+    }
+
+    setSigningId(tx.id);
     try {
-      await transactionsApi.valider(id);
+      // 1. Signature Blockchain via MetaMask
+      console.log("Signature Blockchain demandée pour:", tx.id);
+      
+      const hash = await writeContractAsync({
+        address: BUDGET_LEDGER_ADDRESS as `0x${string}`,
+        abi: BUDGET_LEDGER_ABI,
+        functionName: 'validerDepense',
+        args: [
+          tx.id,
+          String(tx.commune),
+          BigInt(tx.montant_fcfa),
+          tx.categorie,
+          tx.ipfs_hash || "no-hash"
+        ],
+      });
+
+      console.log("Transaction envoyée ! Hash:", hash);
+
+      // 2. Mise à jour du Backend — on transmet le hash MetaMask (évite double signature backend)
+      await transactionsApi.valider(tx.id, hash);
+      
+      alert("Validation réussie et enregistrée sur Polygon !");
       refetch();
+    } catch (err: any) {
+      console.error("Erreur de validation:", err);
+      alert("Erreur lors de la signature : " + (err.shortMessage || "Échec de la transaction"));
     } finally {
       setSigningId(null);
     }
@@ -38,13 +73,20 @@ export default function ValidationPage() {
 
   const handleRejeterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rejectingId) return;
-    
-    // Simulate rejection logic
-    console.log("Rejet de la transaction", rejectingId);
-    setIsRejectModalOpen(false);
-    setRejectingId(null);
-    refetch();
+    if (!rejectingId || !rejectMotif.trim()) return;
+
+    setRejectLoading(true);
+    try {
+      await transactionsApi.rejeter(rejectingId, rejectMotif.trim());
+      setIsRejectModalOpen(false);
+      setRejectingId(null);
+      setRejectMotif("");
+      refetch();
+    } catch (err: any) {
+      alert("Erreur lors du rejet : " + (err?.message || "Échec"));
+    } finally {
+      setRejectLoading(false);
+    }
   };
 
   if (loading) return (
@@ -132,7 +174,7 @@ export default function ValidationPage() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleValider(tx.id);
+                            handleValider(tx);
                           }}
                           disabled={signingId === tx.id}
                           className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 px-6 font-black text-xs gap-2 shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
@@ -213,12 +255,18 @@ export default function ValidationPage() {
           </div>
           
           <FormField label="Motif du rejet" required>
-            <RichTextEditor name="motif" placeholder="Veuillez expliquer pourquoi cette transaction est rejetée..." />
+            <RichTextEditor
+              name="motif"
+              placeholder="Veuillez expliquer pourquoi cette transaction est rejetée..."
+              onChange={(val: string) => setRejectMotif(val)}
+            />
           </FormField>
 
           <div className="pt-6 border-t border-border flex justify-end gap-3">
-             <Button variant="ghost" type="button" onClick={() => setIsRejectModalOpen(false)}>Annuler</Button>
-             <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white rounded-xl">Confirmer le Rejet</Button>
+             <Button variant="ghost" type="button" onClick={() => { setIsRejectModalOpen(false); setRejectMotif(""); }}>Annuler</Button>
+             <Button type="submit" disabled={rejectLoading || !rejectMotif.trim()} className="bg-red-600 hover:bg-red-700 text-white rounded-xl">
+               {rejectLoading ? "Rejet en cours..." : "Confirmer le Rejet"}
+             </Button>
           </div>
         </form>
       </Drawer>

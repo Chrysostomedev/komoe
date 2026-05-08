@@ -195,6 +195,7 @@ export interface TransactionCreatePayload {
   description: string;
   periode: string;
   ipfs_hash?: string;
+  blockchain_tx_hash_soumission?: string;
 }
 
 export const transactionsApi = {
@@ -228,10 +229,31 @@ export const transactionsApi = {
       body: JSON.stringify(payload),
     }),
 
-  valider: (id: string) =>
+  valider: (id: string, txHash?: string) =>
     apiFetch<{ message: string; transaction: Transaction }>(
       `/api/transactions/${id}/valider/`,
-      { method: "PATCH" }
+      {
+        method: "PATCH",
+        body: JSON.stringify({ blockchain_tx_hash: txHash ?? null })
+      }
+    ),
+
+  rejeter: (id: string, motif: string) =>
+    apiFetch<{ message: string; transaction: Transaction }>(
+      `/api/transactions/${id}/rejeter/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ motif }),
+      }
+    ),
+
+  confirmerHash: (id: string, txHash: string) =>
+    apiFetch<{ message: string; transaction: Transaction }>(
+      `/api/transactions/${id}/confirmer-hash/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ blockchain_tx_hash_soumission: txHash }),
+      }
     ),
 };
 

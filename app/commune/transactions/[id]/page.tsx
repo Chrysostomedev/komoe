@@ -7,7 +7,7 @@ import { ExternalLink, ArrowLeft, FileText, CheckCircle2, Loader2, AlertTriangle
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTransactionDetail } from "@/lib/hooks/useTransactions";
-import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash } from "@/lib/constants";
+import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash, stripHtml } from "@/lib/constants";
 import { useAuth } from "@/lib/auth-context";
 import { transactionsApi } from "@/lib/api";
 import { useState } from "react";
@@ -53,6 +53,20 @@ export default function TransactionDetailPage() {
 
   const canValider = user?.role === 'MAIRE' && tx.statut === 'SOUMIS';
 
+  // Extraction du motif de rejet si présent dans la description
+  const parseDescription = (desc: string) => {
+    const rejectMatch = desc.match(/\[REJET — .*\] (.*)$/);
+    if (rejectMatch) {
+      return {
+        text: stripHtml(desc.split("[REJET")[0].trim()),
+        motif: rejectMatch[1]
+      };
+    }
+    return { text: stripHtml(desc), motif: null };
+  };
+
+  const { text: cleanDescription, motif: rejectionMotif } = parseDescription(tx.description);
+
   return (
     <div className="animate-in fade-in duration-500 max-w-6xl mx-auto pb-20 space-y-8">
       <div className="flex items-center justify-between">
@@ -87,8 +101,11 @@ export default function TransactionDetailPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <h2 className="text-4xl font-black text-foreground tracking-tight">Détails du Flux</h2>
-            <Badge variant={tx.statut === 'VALIDE' ? 'success' : 'secondary'} className="h-8 px-4 text-xs font-black rounded-full">
-              {tx.statut === 'VALIDE' ? 'SCELLÉ SUR POLYGON' : 'EN ATTENTE DE SIGNATURE'}
+            <Badge 
+              variant={tx.statut === 'VALIDE' ? 'success' : tx.statut === 'REJETE' ? 'destructive' : 'secondary'} 
+              className="h-8 px-4 text-xs font-black rounded-full"
+            >
+              {tx.statut === 'VALIDE' ? 'SCELLÉ SUR POLYGON' : tx.statut === 'REJETE' ? 'REJETÉ PAR LE MAIRE' : 'EN ATTENTE DE SIGNATURE'}
             </Badge>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground font-mono text-xs">
@@ -104,6 +121,27 @@ export default function TransactionDetailPage() {
         </div>
       </div>
 
+      {tx.statut === 'REJETE' && (
+        <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/30 rounded-[32px] overflow-hidden border">
+          <CardContent className="p-8 flex items-start gap-6">
+            <div className="p-4 bg-red-100 dark:bg-red-900/40 rounded-2xl text-red-600 dark:text-red-400">
+              <AlertTriangle size={32} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-red-800 dark:text-red-400 uppercase tracking-wider mb-2">Décision de Rejet de l'Autorité</h3>
+              <p className="text-red-700 dark:text-red-300 font-medium leading-relaxed">
+                <span className="font-black">Motif :</span> {rejectionMotif || "Non spécifié"}
+              </p>
+              <div className="mt-4 flex items-center gap-4 text-xs font-bold text-red-600/70 dark:text-red-400/70 uppercase tracking-widest">
+                <span>Par : {tx.valide_par_detail?.full_name || "Monsieur le Maire"}</span>
+                <span className="w-1 h-1 bg-red-300 rounded-full" />
+                <span>Le : {tx.validated_at ? new Date(tx.validated_at).toLocaleString() : "Date inconnue"}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <Card className="shadow-2xl border-border rounded-[40px] overflow-hidden border">
@@ -116,7 +154,7 @@ export default function TransactionDetailPage() {
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                     <Tag size={12} /> Objet de la dépense
                   </p>
-                  <p className="text-xl font-bold text-foreground leading-snug">{tx.description}</p>
+                  <p className="text-xl font-bold text-foreground leading-snug">{cleanDescription}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">

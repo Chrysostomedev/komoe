@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowUpRight, ArrowDownRight, Activity,
   Globe, Clock, CheckCircle,
-  ShieldCheck, ExternalLink, Loader2, AlertTriangle,
+  ShieldCheck, ExternalLink, Loader2, AlertTriangle, XCircle,
   Wallet, PieChart, BarChart3, Receipt, Building2, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,12 +21,22 @@ import { useCommuneTransactions, useTransactionsList, STATUT_LABELS, STATUT_VARI
 import { useAuth } from '@/lib/auth-context';
 import { type Commune, type Transaction } from '@/lib/api';
 import { formatFCFA, formatDateShort, truncateHash, polygonscanTxUrl } from '@/lib/constants';
+import { ipfsService } from "@/lib/ipfs";
+import { useWriteContract, useAccount } from "wagmi";
+import { parseGwei } from "viem";
+import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 
 interface DashboardViewProps {
   role: Role;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+// Helper : supprime les balises HTML stockées par le RichTextEditor
+const stripHtml = (html: string): string => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+};
 
 const StatusBadge = ({ status }: { status: string }) => {
   const label = STATUT_LABELS[status] ?? status;
@@ -93,7 +103,7 @@ const RecentTransactionsBlock = ({ txs, title, loading, error, viewAllHref }: {
                   {tx.type === 'DEPENSE' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-foreground dark:text-white line-clamp-1 group-hover:text-primary transition-colors">{tx.description}</p>
+                  <p className="font-bold text-sm text-foreground dark:text-white line-clamp-1 group-hover:text-primary transition-colors">{stripHtml(tx.description)}</p>
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{formatDateShort(tx.created_at)}</span>
                     {tx.blockchain_tx_hash_validation && (
@@ -199,7 +209,7 @@ const AgentDashboard = ({ communeId }: { communeId: number }) => {
                   onClick={() => router.push(`/commune/transactions/${tx.id}`)}
                   className="p-4 bg-card/80 backdrop-blur-sm rounded-2xl border border-amber-200/30 dark:border-amber-900/40 shadow-sm cursor-pointer hover:border-amber-400 dark:hover:border-amber-700 transition-all hover:translate-x-1"
                 >
-                  <p className="font-bold text-foreground text-sm line-clamp-1">{tx.description}</p>
+                  <p className="font-bold text-foreground text-sm line-clamp-1">{stripHtml(tx.description)}</p>
                   <div className="flex justify-between items-end mt-2">
                     <p className="text-[10px] uppercase font-black text-muted-foreground tracking-tighter opacity-70">{formatDateShort(tx.created_at)}</p>
                     <p className="font-black text-amber-700 dark:text-amber-500 tabular-nums text-sm">{formatFCFA(tx.montant_fcfa)}</p>
@@ -229,6 +239,7 @@ const AgentDashboard = ({ communeId }: { communeId: number }) => {
 const MaireDashboard = ({ communeId }: { communeId: number }) => {
   const router = useRouter();
   const [signingId, setSigningId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const { transactions: all, loading, error, refetch } = useCommuneTransactions(communeId);
   const enAttente = all.filter(t => t.statut === 'SOUMIS');
   const valides = all.filter(t => t.statut === 'VALIDE');
@@ -239,16 +250,64 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
     ? ((commune.budget_depense_fcfa / commune.budget_annuel_fcfa) * 100).toFixed(1)
     : '0.0';
 
-  const handleValider = async (id: string) => {
-    setSigningId(id);
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const handleValider = async (tx: Transaction) => {
+    if (!isConnected) {
+      alert("Veuillez connecter votre portefeuille MetaMask en haut à droite.");
+      return;
+    }
+
+    setSigningId(tx.id);
     try {
+      // 1. Signature Blockchain via MetaMask
+      console.log("📝 Signature Blockchain demandée pour:", tx.id);
+      
+      const hash = await writeContractAsync({
+        address: BUDGET_LEDGER_ADDRESS as `0x${string}`,
+        abi: BUDGET_LEDGER_ABI,
+        functionName: 'validerDepense',
+        args: [tx.id, String(tx.commune), BigInt(tx.montant_fcfa), tx.categorie, tx.ipfs_hash || "no-hash"],
+        gas: 200000n,
+        maxPriorityFeePerGas: parseGwei('30'),
+        maxFeePerGas: parseGwei('35'),
+      });
+
+      console.log("✅ Transaction envoyée ! Hash:", hash);
+
+      // 2. Mise à jour du Backend
       const { transactionsApi } = await import('@/lib/api');
-      await transactionsApi.valider(id);
+      await transactionsApi.valider(tx.id, hash);
+      
+      alert("Félicitations Monsieur le Maire ! La dépense est gravée sur Polygon. 🔐");
       refetch();
-    } catch (err) {
-      console.error("Erreur de signature", err);
+    } catch (err: any) {
+      console.error("❌ Erreur de validation:", err);
+      alert("Échec de la signature : " + (err.shortMessage || "Erreur de transaction"));
     } finally {
       setSigningId(null);
+    }
+  };
+
+  const handleRejeter = async (tx: Transaction) => {
+    const motif = prompt("Veuillez saisir le motif du rejet (obligatoire) :");
+    if (!motif || motif.trim().length < 5) {
+      alert("Le motif de rejet est obligatoire (min. 5 caractères).");
+      return;
+    }
+
+    setRejectingId(tx.id);
+    try {
+      const { transactionsApi } = await import('@/lib/api');
+      await transactionsApi.rejeter(tx.id, motif);
+      alert("La transaction a été rejetée.");
+      refetch();
+    } catch (err: any) {
+      console.error("❌ Erreur de rejet:", err);
+      alert("Échec du rejet : " + (err.message || "Erreur inconnue"));
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -306,31 +365,50 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
                 onClick={() => router.push(`/commune/transactions/${tx.id}`)}
               >
                 <div className="mb-4 sm:mb-0">
-                  <p className="font-black text-lg text-foreground dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
+                  <p className="font-black text-lg text-foreground dark:text-white group-hover:text-primary transition-colors">{stripHtml(tx.description)}</p>
                   <p className="text-xs font-bold text-muted-foreground mt-1 uppercase tracking-widest">{tx.categorie} · {formatDateShort(tx.created_at)}</p>
                   {tx.ipfs_hash && (
-                    <span className="text-[10px] font-black text-primary hover:underline flex items-center gap-1.5 mt-3 bg-primary/5 w-max px-3 py-1.5 rounded-xl border border-primary/10">
+                    <a 
+                      href={ipfsService.getPublicUrl(tx.ipfs_hash)}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[10px] font-black text-primary hover:bg-primary/10 flex items-center gap-1.5 mt-3 bg-primary/5 w-max px-3 py-1.5 rounded-xl border border-primary/10 transition-colors"
+                    >
                       <ExternalLink className="w-3.5 h-3.5" /> Preuve IPFS Scellée
-                    </span>
+                    </a>
                   )}
                 </div>
                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-4">
                   <p className="font-black text-rose-600 text-2xl tabular-nums">{formatFCFA(tx.montant_fcfa)}</p>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleValider(tx.id);
-                    }}
-                    disabled={signingId === tx.id}
-                    className="text-xs font-black px-6 py-3 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:scale-100"
-                  >
-                    {signingId === tx.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="w-4 h-4" />
-                    )}
-                    Signer sur Polygon
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRejeter(tx);
+                      }}
+                      disabled={signingId === tx.id || rejectingId === tx.id}
+                      className="text-[10px] font-black px-4 py-3 bg-destructive/10 text-destructive rounded-xl hover:bg-destructive hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {rejectingId === tx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                      Rejeter
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleValider(tx);
+                      }}
+                      disabled={signingId === tx.id || rejectingId === tx.id}
+                      className="text-[10px] font-black px-5 py-3 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:scale-100"
+                    >
+                      {signingId === tx.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-3 h-3" />
+                      )}
+                      Signer sur Polygon
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

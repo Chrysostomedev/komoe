@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
+from web3 import Web3
 
 from django.conf import settings
 
@@ -31,9 +32,10 @@ class BlockchainService:
         """Initialise Web3 (lazy loading)."""
         if self._w3 is None:
             from web3 import Web3
-            self._w3 = Web3(Web3.HTTPProvider(settings.POLYGON_RPC_URL))
+            rpc_url = getattr(settings, "POLYGON_AMOY_RPC_URL", None)
+            self._w3 = Web3(Web3.HTTPProvider(rpc_url))
             if not self._w3.is_connected():
-                raise ConnectionError(f"Impossible de se connecter au nœud RPC : {settings.POLYGON_RPC_URL}")
+                raise ConnectionError(f"Impossible de se connecter au nœud RPC : {rpc_url}")
         return self._w3
 
     def _get_contract(self):
@@ -95,6 +97,18 @@ class BlockchainService:
         func = contract.functions.validerDepense(
             depense_id, commune_id, montant, categorie, ipfs_hash
         )
+        return self._send_transaction(func)
+
+    def attribuer_role_agent(self, wallet_address: str) -> str:
+        """Donne le rôle AGENT_ROLE à une adresse (Admin uniquement)."""
+        contract = self._get_contract()
+        func = contract.functions.attribuerRoleAgent(Web3.to_checksum_address(wallet_address))
+        return self._send_transaction(func)
+
+    def attribuer_role_maire(self, wallet_address: str) -> str:
+        """Donne le rôle MAIRE_ROLE à une adresse (Admin uniquement)."""
+        contract = self._get_contract()
+        func = contract.functions.attribuerRoleMaire(Web3.to_checksum_address(wallet_address))
         return self._send_transaction(func)
 
     def enregistrer_recette(

@@ -35,7 +35,10 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ["commune", "type", "montant_fcfa", "categorie", "description", "periode", "ipfs_hash"]
+        fields = [
+            "id", "commune", "type", "montant_fcfa", "categorie", 
+            "description", "periode", "ipfs_hash", "blockchain_tx_hash_soumission"
+        ]
 
     def validate_montant_fcfa(self, value):
         if value <= 0:
@@ -83,7 +86,6 @@ class SignalementSerializer(serializers.ModelSerializer):
     auteur_detail = UserSerializer(source="auteur", read_only=True)
 
     class Meta:
-        model = getattr(serializers.ModelSerializer, "Meta", object)
         from .models import Signalement
         model = Signalement
         fields = [

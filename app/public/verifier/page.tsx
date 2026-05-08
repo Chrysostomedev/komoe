@@ -8,6 +8,12 @@ import { useTransactionsList } from "@/lib/hooks/useTransactions";
 import { useBlockchainVerify } from "@/lib/hooks/useBlockchainVerify";
 import { type Transaction } from "@/lib/api";
 import { formatFCFA, formatDateShort, polygonscanTxUrl } from "@/lib/constants";
+import { ipfsService } from "@/lib/ipfs";
+
+const stripHtml = (html: string): string => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+};
 
 export default function VerifierPage() {
   const [hash, setHash] = useState("");
@@ -130,7 +136,7 @@ export default function VerifierPage() {
 
             <div className="space-y-3 border-t border-border pt-4">
               {[
-                { label: "Description", value: result.description },
+                { label: "Description", value: stripHtml(result.description) },
                 { label: "Commune", value: result.commune_detail?.nom ?? `Commune #${result.commune}` },
                 { label: "Catégorie", value: result.categorie },
                 { label: "Montant", value: formatFCFA(result.montant_fcfa) },
@@ -153,8 +159,11 @@ export default function VerifierPage() {
               )}
               {result.ipfs_hash && (
                 <div className="flex gap-2 items-start">
-                  <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">IPFS</span>
-                  <span className="text-xs font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded-lg break-all">{result.ipfs_hash}</span>
+                  <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">Justificatif</span>
+                  <a href={ipfsService.getPublicUrl(result.ipfs_hash)} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-mono text-teal-600 bg-teal-50 border border-teal-100 px-2 py-1 rounded-lg hover:underline flex items-center gap-1 break-all">
+                    {result.ipfs_hash} <ExternalLink className="w-3 h-3 shrink-0" />
+                  </a>
                 </div>
               )}
 

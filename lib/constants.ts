@@ -61,3 +61,8 @@ export const polygonscanTxUrl = (txHash: string): string =>
 
 export const ipfsFileUrl = (ipfsHash: string): string =>
   `${IPFS_GATEWAY_URL}/${ipfsHash}`;
+
+export const stripHtml = (html: string): string => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
+};

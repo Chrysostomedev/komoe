@@ -9,7 +9,7 @@ import DataTable, { ColumnConfig } from '@/components/ui/DataTable';
 import { useAuth } from '@/lib/auth-context';
 import { useCommuneTransactions, useTransactionsList, STATUT_LABELS, STATUT_VARIANT } from '@/lib/hooks/useTransactions';
 import { type Transaction } from '@/lib/api';
-import { formatFCFA, formatDateShort, truncateHash, polygonscanTxUrl } from '@/lib/constants';
+import { formatFCFA, formatDateShort, truncateHash, polygonscanTxUrl, stripHtml } from '@/lib/constants';
 
 interface TransactionsViewProps {
   role: Role;
@@ -67,12 +67,15 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
     {
       header: 'Description',
       key: 'description',
-      render: (val, item) => (
-        <div>
-          <div className="font-semibold text-foreground line-clamp-1">{val}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{item.categorie}</div>
-        </div>
-      ),
+      render: (val, item) => {
+        const cleanVal = typeof val === 'string' ? stripHtml(val.split("[REJET")[0].trim()) : val;
+        return (
+          <div>
+            <div className="font-semibold text-foreground line-clamp-1">{cleanVal}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{item.categorie}</div>
+          </div>
+        );
+      },
     },
     {
       header: 'Montant',
@@ -92,6 +95,19 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
       header: 'Statut',
       key: 'statut',
       render: (val) => <StatusBadge status={val} />,
+    },
+    {
+      header: 'Décideur',
+      key: 'valide_par_detail',
+      render: (_, item) => (
+        <div className="flex flex-col">
+          <span className="text-[11px] font-bold text-foreground">
+            {item.valide_par_detail?.full_name || (item.statut === 'SOUMIS' ? '—' : 'Système')}
+          </span>
+          {item.statut === 'VALIDE' && <span className="text-[9px] font-black text-emerald-600 uppercase">Signataire</span>}
+          {item.statut === 'REJETE' && <span className="text-[9px] font-black text-rose-600 uppercase">Auteur Rejet</span>}
+        </div>
+      ),
     },
     {
       header: 'Preuve Polygon',

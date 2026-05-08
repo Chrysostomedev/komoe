@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { FormField, Input, Select, PdfUpload, RichTextEditor, QuoteItemsInput, QuoteItemData } from "@/components/ui/ReusableForm";
 import { Button } from "@/components/ui/Button";
+import { parseGwei } from "viem";
 import { Card, CardContent } from "@/components/ui/Card";
 import { transactionsApi, type ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { ipfsService } from "@/lib/ipfs";
+import { useWriteContract, useAccount } from "wagmi";
+import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 
 interface DepenseFormProps {
   onSuccess?: () => void;
@@ -19,6 +23,8 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [quoteItems, setQuoteItems] = useState<QuoteItemData[]>([]);
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   
   const [files, setFiles] = useState<File[]>([]);
   
@@ -39,6 +45,11 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
       setApiError("Aucune commune associée à votre compte. Veuillez vous reconnecter."); 
       return; 
     }
+
+    if (!isConnected) {
+      setApiError("Veuillez connecter votre portefeuille MetaMask Agent.");
+      return;
+    }
     
     if (!form.description || form.description.length < 10) {
       setApiError("Veuillez fournir une description détaillée (min. 10 caractères).");
@@ -54,18 +65,47 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
         throw new Error("Le montant de la transaction doit être supérieur à 0.");
       }
 
-      // Simulation IPFS Hash pour la démo
-      const mockIpfsHash = files.length > 0 ? "Qm" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) : undefined;
+      // 1. Upload Réel sur IPFS (Pinata)
+      let realIpfsHash = undefined;
+      if (files.length > 0) {
+        try {
+          realIpfsHash = await ipfsService.uploadFile(files[0]);
+        } catch (err) {
+          throw new Error("Échec de l'upload des justificatifs sur IPFS. Vérifiez votre connexion.");
+        }
+      }
 
-      await transactionsApi.soumettre({
+      // 2. Création de la transaction en base Django AVANT la signature
+      //    → permet d'utiliser l'UUID Django comme depenseId on-chain (pas de tempId)
+      const created = await transactionsApi.soumettre({
         commune: user.commune,
         type: form.type,
         montant_fcfa: montantFinal,
         categorie: form.categorie,
         description: form.description,
         periode: form.periode,
-        ipfs_hash: mockIpfsHash,
+        ipfs_hash: realIpfsHash,
       });
+
+      // 3. Signature Blockchain avec l'ID Django réel
+      const txHash = await writeContractAsync({
+        address: BUDGET_LEDGER_ADDRESS,
+        abi: BUDGET_LEDGER_ABI,
+        functionName: "soumettreDepense",
+        args: [
+          created.id,
+          String(user.commune),
+          BigInt(montantFinal),
+          form.categorie,
+          realIpfsHash || "no-hash",
+        ],
+        gas: 200000n,
+        maxPriorityFeePerGas: parseGwei("30"),
+        maxFeePerGas: parseGwei("35"),
+      });
+
+      // 4. Patch du hash blockchain sur la transaction déjà créée
+      await transactionsApi.confirmerHash(created.id, txHash);
 
       if (onSuccess) {
         onSuccess();

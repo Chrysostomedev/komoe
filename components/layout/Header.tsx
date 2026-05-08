@@ -9,23 +9,25 @@ import { useState } from 'react';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
 
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+
 interface HeaderProps {
   role: Role;
   onOpenMobile: () => void;
 }
 
-const ROLE_HEADER_INFO: Record<Role, { title: string; address: string; network: string }> = {
-  AGENT_FINANCIER: { title: 'Agent Financier — Mairie',  address: '0x3f8...e841', network: 'Polygon Amoy' },
-  MAIRE:           { title: 'Maire — Commune',            address: '0x1a2...b345', network: 'Polygon Amoy' },
-  DGDDL:           { title: 'DGDDL — Ministère',   address: '0x5c6...d789', network: 'Polygon Amoy' },
-  COUR_COMPTES:    { title: 'Cour des Comptes',  address: '0x8e9...0abc', network: 'Polygon Amoy' },
-  BAILLEUR:        { title: 'Banque Mondiale',        address: '0x2b3...c456', network: 'Polygon Amoy' },
-  CITOYEN:         { title: 'Citoyen',                    address: '—',            network: 'Polygon Amoy' },
-  JOURNALISTE:     { title: 'Presse / ONG',       address: '—',            network: 'Polygon Amoy' },
+const ROLE_HEADER_INFO: Record<Role, { title: string; network: string }> = {
+  AGENT_FINANCIER: { title: 'Agent Financier — Mairie',  network: 'Polygon Amoy' },
+  MAIRE:           { title: 'Maire — Commune',            network: 'Polygon Amoy' },
+  DGDDL:           { title: 'DGDDL — Ministère',   network: 'Polygon Amoy' },
+  COUR_COMPTES:    { title: 'Cour des Comptes',  network: 'Polygon Amoy' },
+  BAILLEUR:        { title: 'Banque Mondiale',        network: 'Polygon Amoy' },
+  CITOYEN:         { title: 'Citoyen',                    network: 'Polygon Amoy' },
+  JOURNALISTE:     { title: 'Presse / ONG',       network: 'Polygon Amoy' },
 };
 
 export const Header = ({ role, onOpenMobile }: HeaderProps) => {
-  const info = ROLE_HEADER_INFO[role] ?? { title: 'Utilisateur', address: '0x000...0000', network: 'Polygon Amoy' };
+  const info = ROLE_HEADER_INFO[role] ?? { title: 'Utilisateur', network: 'Polygon Amoy' };
   const { theme, setTheme } = useTheme();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -126,12 +128,12 @@ export const Header = ({ role, onOpenMobile }: HeaderProps) => {
                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{info.network}</span>
               </div>
             </div>
-            {info.address !== '—' && (
-              <div className="bg-muted/50 hover:bg-muted transition-all cursor-pointer rounded-2xl flex items-center px-4 py-2 border border-border group">
-                <Wallet className="w-4 h-4 text-primary mr-2 shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-black text-foreground font-mono">{info.address}</span>
-              </div>
-            )}
+            <ConnectButton 
+              label="Connecter"
+              showBalance={false}
+              chainStatus="icon"
+              accountStatus="address"
+            />
           </div>
         </div>
       </header>

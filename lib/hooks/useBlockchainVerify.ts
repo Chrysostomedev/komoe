@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 
-const RPC_URL = "https://polygon-amoy.g.alchemy.com/v2/3BGABwHIJ4eeNCK9XwA6r";
-const CONTRACT_ADDRESS = "0x83e2CD828d15A8D15f2178229F842D30CeD71228"; // Default contract
+const RPC_URL = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://rpc-amoy.polygon.technology";
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xae3ba377c763d6c622991408932e93430035b05f";
 
 const ABI = [
   "function totalTransactions() view returns (uint256)",
