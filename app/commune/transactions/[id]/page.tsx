@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { ExternalLink, ArrowLeft, FileText, CheckCircle2, Loader2, AlertTriangle, Hash, Calendar, Tag, Wallet, Activity, ShieldCheck } from "lucide-react";
+import { ExternalLink, ArrowLeft, FileText, CheckCircle2, Loader2, AlertTriangle, Hash, Calendar, Tag, Wallet, Activity, ShieldCheck, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTransactionDetail } from "@/lib/hooks/useTransactions";
@@ -11,25 +11,87 @@ import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash, stripHtml 
 import { useAuth } from "@/lib/auth-context";
 import { transactionsApi } from "@/lib/api";
 import { useState } from "react";
-
+import { useWriteContract, useAccount } from "wagmi";
+import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 export default function TransactionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const id = params.id as string;
   const { transaction: tx, loading, error, refetch } = useTransactionDetail(id);
-  const [validing, setValiding] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const { isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
 
-  const handleValider = async () => {
-    if (!confirm("Voulez-vous signer et valider cette transaction sur la blockchain Polygon ? Cette action est irréversible.")) return;
-    setValiding(true);
+  const handleValiderMaire = async () => {
+    if (!isConnected) { alert("Connectez votre portefeuille Maire."); return; }
+    if (!confirm("Voulez-vous SIGNER et VALIDER cette transaction sur la blockchain ?")) return;
+    
+    setActionLoading(true);
     try {
-      await transactionsApi.valider(id);
-      await refetch(); // Recharger les données
+      const txHash = await writeContractAsync({
+        address: BUDGET_LEDGER_ADDRESS,
+        abi: BUDGET_LEDGER_ABI,
+        functionName: "validerDepense",
+        args: [
+          tx.id, 
+          String(tx.commune), 
+          BigInt(tx.montant_fcfa), 
+          tx.categorie, 
+          tx.ipfs_hash || "no-hash"
+        ],
+      });
+
+      // 2. Notification au backend avec le hash du Maire
+      await transactionsApi.valider(id, txHash);
+      alert("Transaction validée avec succès sur Polygon !");
+      await refetch();
     } catch (err: any) {
-      alert("Erreur lors de la validation : " + (err.message || "Erreur inconnue"));
+      alert("Erreur de validation : " + (err.message || "Action annulée"));
     } finally {
-      setValiding(false);
+      setActionLoading(false);
+    }
+  };
+
+  const handleSoumettreAgent = async () => {
+    if (!isConnected) { alert("Connectez votre portefeuille Agent."); return; }
+    if (!tx) return;
+
+    setActionLoading(true);
+    try {
+      const txHash = await writeContractAsync({
+        address: BUDGET_LEDGER_ADDRESS,
+        abi: BUDGET_LEDGER_ABI,
+        functionName: tx.type === "RECETTE" ? "enregistrerRecette" : "soumettreDepense",
+        args: [
+          tx.id,
+          String(tx.commune),
+          BigInt(tx.montant_fcfa),
+          tx.categorie,
+          tx.ipfs_hash || "no-hash",
+        ],
+      });
+
+      await transactionsApi.confirmerHash(id, txHash);
+      alert("Transaction signée et soumise au Maire !");
+      await refetch();
+    } catch (err: any) {
+      alert("Erreur de signature : " + (err.message || "Action annulée"));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSupprimer = async () => {
+    if (!confirm("Supprimer ce brouillon définitivement ?")) return;
+    setActionLoading(true);
+    try {
+      await transactionsApi.delete(id);
+      router.push("/commune/transactions");
+    } catch (err) {
+      alert("Erreur lors de la suppression.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -51,7 +113,9 @@ export default function TransactionDetailPage() {
     </div>
   );
 
+  const isAuthor = user?.id === tx.soumis_par_detail?.id;
   const canValider = user?.role === 'MAIRE' && tx.statut === 'SOUMIS';
+  const canSignerDraft = isAuthor && tx.statut === 'BROUILLON';
 
   // Extraction du motif de rejet si présent dans la description
   const parseDescription = (desc: string) => {
@@ -76,13 +140,41 @@ export default function TransactionDetailPage() {
         <div className="flex items-center gap-3">
           {canValider && (
             <Button 
-              onClick={handleValider} 
-              disabled={validing}
-              className="bg-primary hover:bg-primary/90 text-white font-black rounded-xl px-6 h-10 shadow-lg shadow-primary/20 flex items-center gap-2"
+              onClick={handleValiderMaire} 
+              disabled={actionLoading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl px-6 h-10 shadow-lg shadow-emerald-200 flex items-center gap-2"
             >
-              {validing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck size={16} />}
-              {validing ? "Signature..." : "Signer & Valider (Blockchain)"}
+              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck size={16} />}
+              {actionLoading ? "Signature..." : "Signer & Valider (Maire)"}
             </Button>
+          )}
+          {canSignerDraft && (
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleSupprimer} 
+                variant="outline"
+                disabled={actionLoading}
+                className="text-rose-600 border-rose-200 hover:bg-rose-50 font-bold rounded-xl px-4 h-10"
+              >
+                Supprimer
+              </Button>
+              <Link href={`/commune/transactions/${id}/modifier`}>
+                <Button 
+                  variant="outline"
+                  className="text-amber-600 border-amber-200 hover:bg-amber-50 font-bold rounded-xl px-4 h-10 flex items-center gap-2"
+                >
+                  <Pencil size={16} /> Modifier
+                </Button>
+              </Link>
+              <Button 
+                onClick={handleSoumettreAgent} 
+                disabled={actionLoading}
+                className="bg-primary hover:bg-primary/90 text-white font-black rounded-xl px-6 h-10 shadow-lg shadow-primary/20 flex items-center gap-2"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity size={16} />}
+                {actionLoading ? "Soumission..." : "Signer & Envoyer au Maire"}
+              </Button>
+            </div>
           )}
           {tx.blockchain_tx_hash_validation && (
             <a 
@@ -105,7 +197,7 @@ export default function TransactionDetailPage() {
               variant={tx.statut === 'VALIDE' ? 'success' : tx.statut === 'REJETE' ? 'destructive' : 'secondary'} 
               className="h-8 px-4 text-xs font-black rounded-full"
             >
-              {tx.statut === 'VALIDE' ? 'SCELLÉ SUR POLYGON' : tx.statut === 'REJETE' ? 'REJETÉ PAR LE MAIRE' : 'EN ATTENTE DE SIGNATURE'}
+              {tx.statut === 'VALIDE' ? 'SCELLÉ SUR POLYGON' : tx.statut === 'REJETE' ? 'REJETÉ PAR LE MAIRE' : tx.statut === 'BROUILLON' ? 'BROUILLON (NON SIGNÉ)' : 'EN ATTENTE DE SIGNATURE'}
             </Badge>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground font-mono text-xs">
@@ -180,7 +272,7 @@ export default function TransactionDetailPage() {
                     <ShieldCheck size={14} className="text-purple-500" /> Preuve Cryptographique d'Immuabilité (Proof-of-Receipt)
                   </p>
                   <div className="bg-muted/50 border border-border p-5 rounded-[24px] font-mono text-xs text-muted-foreground break-all leading-relaxed shadow-inner">
-                    {tx.blockchain_tx_hash_validation || tx.blockchain_tx_hash_soumission || "Génération du hash en cours sur le réseau Polygon..."}
+                    {tx.blockchain_tx_hash_validation || tx.blockchain_tx_hash_soumission || (tx.statut === 'BROUILLON' ? "En attente de signature agent..." : "Génération du hash en cours sur le réseau Polygon...")}
                   </div>
                 </div>
               </div>
@@ -206,10 +298,10 @@ export default function TransactionDetailPage() {
                 </div>
 
                 <div className="relative flex items-center gap-6 group">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-2xl border-4 border-background shrink-0 z-10 shadow-lg bg-emerald-500 text-white">
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-2xl border-4 border-background shrink-0 z-10 shadow-lg ${tx.statut !== 'BROUILLON' ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>
                     <CheckCircle2 size={24} />
                   </div>
-                  <div className="flex-1 p-6 rounded-[24px] border bg-emerald-500/5 border-emerald-500/20">
+                  <div className={`flex-1 p-6 rounded-[24px] border ${tx.statut !== 'BROUILLON' ? "bg-emerald-500/5 border-emerald-500/20" : "bg-card border-border"}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                       <div className="font-black text-foreground">Soumission Agent Financier</div>
                       <time className="font-mono text-[10px] font-bold text-muted-foreground uppercase">{new Date(tx.created_at).toLocaleString()}</time>
@@ -236,13 +328,6 @@ export default function TransactionDetailPage() {
                     <p className="text-[10px] text-muted-foreground font-medium">Sceau IPFS : {tx.ipfs_hash ? tx.ipfs_hash.slice(0, 12) + "..." : "QmXv...9a2f"}</p>
                   </div>
                 </div>
-                <div className="group flex items-center gap-4 p-4 bg-card rounded-[24px] border border-border hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md">
-                  <div className="p-3 bg-primary/10 text-primary rounded-2xl group-hover:bg-primary group-hover:text-white transition-colors"><FileText size={20} /></div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-xs font-black text-foreground truncate uppercase tracking-tighter">Bon_Reception.pdf</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Sceau IPFS : QmY...z81q</p>
-                  </div>
-                </div>
               </div>
               <div className="mt-8 p-6 bg-primary/5 rounded-[24px] border border-primary/10">
                 <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">Note Transparence</p>
@@ -257,7 +342,7 @@ export default function TransactionDetailPage() {
                   <ShieldCheck size={32} />
                </div>
                <h3 className="text-xl font-black leading-tight">Vérification Blockchain</h3>
-               <p className="text-sm text-white/70 leading-relaxed">Cette transaction est gravée dans le bloc #6529{id.slice(-2)} de la chaîne Polygon Amoy.</p>
+               <p className="text-sm text-white/70 leading-relaxed">Cette transaction est gravée sur la chaîne Polygon Amoy.</p>
                <Button className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl font-black mt-4 h-12">
                  Vérifier le Reçu JSON
                </Button>

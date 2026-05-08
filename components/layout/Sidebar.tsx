@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Receipt, FileText, Building2,
   ShieldCheck, PieChart, AlertTriangle, Users, Shield,
   Network, ArrowDownRight, Clock, CheckCircle, Globe,
-  BarChart3, Download, Eye, MapPin, X, ChevronLeft, ChevronRight, LogOut
+  BarChart3, Download, Eye, MapPin, X, ChevronLeft, ChevronRight, LogOut, Banknote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/Button';
@@ -30,6 +30,7 @@ interface NavItem {
 
 const NAV_CONTROLE: NavItem[] = [
   { name: 'Vue nationale',           href: '/controle/dashboard',      icon: LayoutDashboard },
+  { name: 'Gestion des accès',       href: '/controle/comptes',        icon: Users, onlyFor: ['DGDDL'] },
   { name: 'Les communes',            href: '/controle/communes',       icon: Globe },
   { name: 'Classement',              href: '/controle/classement',     icon: BarChart3 },
   { name: 'Alertes & retards',       href: '/controle/alertes',        icon: AlertTriangle },
@@ -38,12 +39,12 @@ const NAV_CONTROLE: NavItem[] = [
   { name: 'Réseau Polygon',          href: '/controle/blockchain',     icon: Network },
   { name: 'Rapports officiels',      href: '/controle/rapports',       icon: FileText },
   { name: 'Export / API',            href: '/controle/export',         icon: Download },
-  { name: 'Comptes mairies',         href: '/controle/comptes',        icon: Users, onlyFor: ['DGDDL'] },
 ];
 
 const NAV_COMMUNE: NavItem[] = [
   { name: 'Tableau de bord',         href: '/commune/dashboard',             icon: LayoutDashboard },
   { name: 'Saisir une dépense',      href: '/commune/transactions/nouvelle', icon: ArrowDownRight, onlyFor: ['AGENT_FINANCIER'] },
+  { name: 'Enregistrer recette',     href: '/commune/recettes/nouvelle',     icon: Banknote,       onlyFor: ['MAIRE'] },
   { name: 'Mes saisies',             href: '/commune/transactions',          icon: Receipt,        onlyFor: ['AGENT_FINANCIER'], exact: true },
   { name: 'Dépenses',                href: '/commune/depenses',              icon: ArrowDownRight, onlyFor: ['AGENT_FINANCIER'] },
   { name: 'À valider',               href: '/commune/en-attente',            icon: Clock,          onlyFor: ['AGENT_FINANCIER'] },
@@ -101,6 +102,7 @@ const ROLE_SHORT: Record<string, string> = {
 export const Sidebar = ({ role, isMobileOpen, setIsMobileOpen, isCollapsed, setIsCollapsed }: SidebarProps) => {
   const pathname = usePathname();
   const navItems = getNavItems(role);
+  console.log("SIDEBAR ROLE:", role, "ITEMS:", navItems.map(i => i.name));
 
   return (
     <>

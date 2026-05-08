@@ -3,12 +3,12 @@
 import { Role } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { ExternalLink, FileText, Download, Loader2, AlertTriangle } from 'lucide-react';
+import { ExternalLink, FileText, Download, Loader2, AlertTriangle, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import DataTable, { ColumnConfig } from '@/components/ui/DataTable';
 import { useAuth } from '@/lib/auth-context';
 import { useCommuneTransactions, useTransactionsList, STATUT_LABELS, STATUT_VARIANT } from '@/lib/hooks/useTransactions';
-import { type Transaction } from '@/lib/api';
+import { transactionsApi, type Transaction } from '@/lib/api';
 import { formatFCFA, formatDateShort, truncateHash, polygonscanTxUrl, stripHtml } from '@/lib/constants';
 
 interface TransactionsViewProps {
@@ -43,7 +43,7 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
   const communeId = user?.commune ?? null;
 
   const isCommune = role === 'AGENT_FINANCIER' || role === 'MAIRE';
-  const { transactions: communeTxs, loading: lcLoading, error: lcError } = useCommuneTransactions(
+  const { transactions: communeTxs, loading: lcLoading, error: lcError, refetch } = useCommuneTransactions(
     isCommune ? communeId : null
   );
   const { transactions: publicTxs, loading: lpLoading, error: lpError } = useTransactionsList(
@@ -53,6 +53,17 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
   const txs = isCommune ? communeTxs : publicTxs;
   const loading = isCommune ? lcLoading : lpLoading;
   const error = isCommune ? lcError : lpError;
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce brouillon ?")) return;
+    try {
+      await transactionsApi.delete(id);
+      alert("Brouillon supprimé avec succès.");
+      refetch();
+    } catch (err) {
+      alert("Erreur lors de la suppression.");
+    }
+  };
 
   const columns: ColumnConfig<Transaction>[] = [
     {
@@ -102,7 +113,7 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
       render: (_, item) => (
         <div className="flex flex-col">
           <span className="text-[11px] font-bold text-foreground">
-            {item.valide_par_detail?.full_name || (item.statut === 'SOUMIS' ? '—' : 'Système')}
+            {item.valide_par_detail?.full_name || (item.statut === 'SOUMIS' ? '—' : (item.statut === 'BROUILLON' ? 'Édition...' : 'Système'))}
           </span>
           {item.statut === 'VALIDE' && <span className="text-[9px] font-black text-emerald-600 uppercase">Signataire</span>}
           {item.statut === 'REJETE' && <span className="text-[9px] font-black text-rose-600 uppercase">Auteur Rejet</span>}
@@ -129,13 +140,38 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
     {
       header: 'Actions',
       key: 'id',
-      render: (val) => (
-        <Link href={getDetailRoute(role, val)}>
-          <Button variant="ghost" size="sm">
-            <FileText className="w-4 h-4 mr-2" />
-            Détails
-          </Button>
-        </Link>
+      render: (val, item) => (
+        <div className="flex items-center gap-2">
+          <Link href={getDetailRoute(role, val)}>
+            <Button variant="ghost" size="sm" className="h-8 px-2">
+              <FileText className="w-4 h-4" />
+              <span className="sr-only">Détails</span>
+            </Button>
+          </Link>
+          {item.statut === 'BROUILLON' && role === 'AGENT_FINANCIER' && (
+            <>
+              <Link href={`/commune/transactions/${val}/modifier`}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span className="sr-only">Modifier</span>
+                </Button>
+              </Link>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                onClick={() => handleDelete(val)}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="sr-only">Supprimer</span>
+              </Button>
+            </>
+          )}
+        </div>
       ),
     },
   ];

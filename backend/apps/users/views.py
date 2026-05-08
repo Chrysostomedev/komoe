@@ -6,6 +6,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .serializers import RegisterSerializer, UserSerializer, UserCreateByAdminSerializer
 from .permissions import IsDGDDL
+from ..blockchain.service import BlockchainService
+from .models import Role
 
 
 class RegisterView(generics.CreateAPIView):
@@ -67,3 +69,61 @@ def verify_journalist(request, id):
     user.journaliste_verifie = True
     user.save(update_fields=["journaliste_verifie"])
     return Response({"message": "Journaliste vérifié.", "user": UserSerializer(user).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsDGDDL])
+def authorize_blockchain(request, id):
+    """DGDDL : attribue le rôle Agent ou Maire on-chain et met à jour le profil."""
+    try:
+        user = User.objects.get(id=id)
+    except User.DoesNotExist:
+        return Response({"error": "Utilisateur introuvable."}, status=404)
+
+    wallet_address = request.data.get("wallet_address")
+    if not wallet_address:
+        return Response({"error": "L'adresse wallet est obligatoire."}, status=400)
+
+    blockchain = BlockchainService()
+    if not blockchain.is_configured():
+        return Response({"error": "Blockchain non configurée sur le serveur."}, status=503)
+
+    try:
+        tx_hash = None
+        if user.role == Role.AGENT_FINANCIER:
+            tx_hash = blockchain.attribuer_role_agent(wallet_address)
+        elif user.role == Role.MAIRE:
+            tx_hash = blockchain.attribuer_role_maire(wallet_address)
+        else:
+            return Response({"error": "Seuls les agents et maires peuvent être autorisés on-chain."}, status=400)
+
+        user.wallet_address = wallet_address
+        user.is_blockchain_authorized = True
+        user.save(update_fields=["wallet_address", "is_blockchain_authorized"])
+
+        return Response({
+            "message": f"Rôle attribué on-chain. TX: {tx_hash}",
+            "user": UserSerializer(user).data,
+            "tx_hash": tx_hash
+        })
+    except Exception as e:
+        return Response({"error": f"Erreur blockchain : {str(e)}"}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsDGDDL])
+def toggle_pause(request):
+    """DGDDL : active/désactive le contrat (Pause d'urgence)."""
+    action = request.data.get("action") # "pause" ou "unpause"
+    blockchain = BlockchainService()
+    try:
+        if action == "pause":
+            tx_hash = blockchain.pause()
+        elif action == "unpause":
+            tx_hash = blockchain.unpause()
+        else:
+            return Response({"error": "Action invalide."}, status=400)
+
+        return Response({"message": f"Contrat {action}d avec succès.", "tx_hash": tx_hash})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

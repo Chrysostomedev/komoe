@@ -13,11 +13,12 @@ import { useWriteContract, useAccount } from "wagmi";
 import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 
 interface DepenseFormProps {
+  initialData?: any;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
+export const DepenseForm = ({ initialData, onSuccess, onCancel }: DepenseFormProps) => {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -29,11 +30,11 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
   const [files, setFiles] = useState<File[]>([]);
   
   const [form, setForm] = useState({
-    type: "DEPENSE" as "DEPENSE" | "RECETTE",
-    montant_fcfa: "",
-    categorie: "Infrastructure",
-    description: "",
-    periode: new Date().toISOString().slice(0, 7),
+    type: initialData?.type || "DEPENSE",
+    montant_fcfa: initialData?.montant_fcfa || "",
+    categorie: initialData?.categorie || "Infrastructure",
+    description: initialData?.description || "",
+    periode: initialData?.periode || new Date().toISOString().slice(0, 7),
   });
 
   const totalHT = quoteItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
@@ -75,45 +76,61 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
         }
       }
 
-      // 2. Création de la transaction en base Django AVANT la signature
-      //    → permet d'utiliser l'UUID Django comme depenseId on-chain (pas de tempId)
-      const created = await transactionsApi.soumettre({
-        commune: user.commune,
-        type: form.type,
-        montant_fcfa: montantFinal,
-        categorie: form.categorie,
-        description: form.description,
-        periode: form.periode,
-        ipfs_hash: realIpfsHash,
-      });
+      // 2. Création ou Mise à jour de la transaction en base Django AVANT la signature
+      let created;
+      if (initialData?.id) {
+        created = await transactionsApi.update(initialData.id, {
+          type: form.type,
+          montant_fcfa: montantFinal,
+          categorie: form.categorie,
+          description: form.description,
+          periode: form.periode,
+          ipfs_hash: realIpfsHash || initialData.ipfs_hash,
+        });
+      } else {
+        created = await transactionsApi.soumettre({
+          commune: user.commune,
+          type: form.type,
+          montant_fcfa: montantFinal,
+          categorie: form.categorie,
+          description: form.description,
+          periode: form.periode,
+          ipfs_hash: realIpfsHash,
+        });
+      }
 
       // 3. Signature Blockchain avec l'ID Django réel
-      const txHash = await writeContractAsync({
-        address: BUDGET_LEDGER_ADDRESS,
-        abi: BUDGET_LEDGER_ABI,
-        functionName: "soumettreDepense",
-        args: [
-          created.id,
-          String(user.commune),
-          BigInt(montantFinal),
-          form.categorie,
-          realIpfsHash || "no-hash",
-        ],
-        gas: 200000n,
-        maxPriorityFeePerGas: parseGwei("30"),
-        maxFeePerGas: parseGwei("35"),
-      });
+      try {
+        const txHash = await writeContractAsync({
+          address: BUDGET_LEDGER_ADDRESS,
+          abi: BUDGET_LEDGER_ABI,
+          functionName: form.type === "RECETTE" ? "enregistrerRecette" : "soumettreDepense",
+          args: [
+            created.id,
+            String(created.commune),
+            BigInt(created.montant_fcfa),
+            created.categorie,
+            realIpfsHash || "no-hash",
+          ],
+        });
 
-      // 4. Patch du hash blockchain sur la transaction déjà créée
-      await transactionsApi.confirmerHash(created.id, txHash);
+        // 4. Patch du hash blockchain
+        await transactionsApi.confirmerHash(created.id, txHash);
+        alert("Succès ! La dépense est signée et envoyée au Maire. 🚀");
+        onSuccess ? onSuccess() : router.push("/commune/transactions");
 
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push("/commune/transactions");
+      } catch (err: any) {
+        console.warn("⚠️ Signature annulée ou échouée:", err);
+        // Si c'est une annulation MetaMask, on informe que c'est quand même en brouillon
+        if (err.message?.includes("User rejected") || err.name === "UserRejectedRequestError") {
+          alert("Signature annulée. La dépense est bien enregistrée en BROUILLON. Vous pourrez la signer plus tard.");
+          onSuccess ? onSuccess() : router.push("/commune/transactions");
+        } else {
+          setApiError("Erreur Blockchain : " + (err.message || "Action annulée"));
+        }
       }
     } catch (err: any) {
-      setApiError(err?.message || (err as ApiError)?.message || "Erreur lors de la soumission sur la blockchain.");
+      setApiError(err?.message || "Erreur lors de l'enregistrement du brouillon.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +151,6 @@ export const DepenseForm = ({ onSuccess, onCancel }: DepenseFormProps) => {
               <FormField label="Nature de l'opération" required>
                 <Select required value={form.type} onChange={(e: any) => setForm(f => ({ ...f, type: e.target.value }))}>
                   <option value="DEPENSE">Dépense (Décaissement)</option>
-                  <option value="RECETTE">Recette (Encaissement)</option>
                 </Select>
               </FormField>
 

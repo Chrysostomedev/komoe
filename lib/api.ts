@@ -111,7 +111,7 @@ export interface UserProfile {
   id: string; email: string; nom: string; prenom: string; full_name: string;
   role: string; profession: string; commune: number | null; commune_nom: string | null;
   wallet_address: string; journaliste_verifie: boolean;
-  email_verifie: boolean; avatar: string; reputation_score: number;
+  email_verifie: boolean; is_blockchain_authorized: boolean; avatar: string; reputation_score: number;
   is_active: boolean; date_joined: string; telephone?: string;
 }
 
@@ -134,6 +134,28 @@ export const authApi = {
     apiFetch<{ access: string }>("/api/auth/refresh/", {
       method: "POST",
       body: JSON.stringify({ refresh: refreshToken }),
+    }),
+
+  list: () => apiFetch<{ results: UserProfile[]; count: number }>("/api/auth/users/"),
+  
+  create: (payload: any) => apiFetch<UserProfile>("/api/auth/users/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+
+  authorizeBlockchain: (id: string, walletAddress: string) =>
+    apiFetch<{ message: string; user: UserProfile; tx_hash: string }>(
+      `/api/auth/users/${id}/authorize-blockchain/`,
+      {
+        method: "POST",
+        body: JSON.stringify({ wallet_address: walletAddress }),
+      }
+    ),
+
+  togglePause: (action: "pause" | "unpause") =>
+    apiFetch<{ message: string; tx_hash: string }>("/api/auth/blockchain/toggle-pause/", {
+      method: "POST",
+      body: JSON.stringify({ action }),
     }),
 };
 
@@ -229,6 +251,17 @@ export const transactionsApi = {
       body: JSON.stringify(payload),
     }),
 
+  delete: (id: string) =>
+    apiFetch<void>(`/api/transactions/${id}/`, {
+      method: "DELETE",
+    }),
+
+  update: (id: string, payload: Partial<TransactionCreatePayload>) =>
+    apiFetch<Transaction>(`/api/transactions/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
   valider: (id: string, txHash?: string) =>
     apiFetch<{ message: string; transaction: Transaction }>(
       `/api/transactions/${id}/valider/`,
@@ -253,6 +286,21 @@ export const transactionsApi = {
       {
         method: "PATCH",
         body: JSON.stringify({ blockchain_tx_hash_soumission: txHash }),
+      }
+    ),
+
+  creerRecette: (payload: Omit<TransactionCreatePayload, "type">) =>
+    apiFetch<Transaction>("/api/transactions/recettes/", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, type: "RECETTE" }),
+    }),
+
+  confirmerRecette: (id: string, txHash: string) =>
+    apiFetch<{ message: string; transaction: Transaction }>(
+      `/api/transactions/recettes/${id}/confirmer/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ blockchain_tx_hash_validation: txHash }),
       }
     ),
 };

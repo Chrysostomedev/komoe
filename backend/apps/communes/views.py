@@ -4,7 +4,7 @@ from django.db.models import Sum, Count, Q
 from django.db.models.functions import Coalesce
 from .models import Commune
 from .serializers import CommuneSerializer
-from apps.users.permissions import IsDGDDL
+from ..users.permissions import IsDGDDL
 
 
 class CommuneListView(generics.ListAPIView):
@@ -13,7 +13,7 @@ class CommuneListView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        from apps.transactions.models import TransactionStatut, TransactionType
+        from ..transactions.models import TransactionStatut, TransactionType
         qs = Commune.objects.filter(is_active=True).annotate(
             _budget_depense=Coalesce(Sum(
                 "transactions__montant_fcfa",

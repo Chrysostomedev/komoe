@@ -49,13 +49,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "nom", "prenom", "full_name", "role", "profession",
-            "commune", "commune_nom", "wallet_address",
+            "commune", "commune_nom", "wallet_address", "is_blockchain_authorized",
             "telephone", "media_organisation", "journaliste_verifie",
             "email_verifie", "avatar", "reputation_score",
             "is_active", "date_joined",
         ]
         read_only_fields = [
-            "id", "wallet_address", "journaliste_verifie",
+            "id", "journaliste_verifie",
             "email_verifie", "reputation_score", "date_joined",
         ]
 

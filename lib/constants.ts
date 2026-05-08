@@ -59,6 +59,9 @@ export const truncateHash = (hash: string, chars = 6): string =>
 export const polygonscanTxUrl = (txHash: string): string =>
   `${POLYGONSCAN_BASE_URL}/tx/${txHash}`;
 
+export const polygonscanAddressUrl = (address: string): string =>
+  `${POLYGONSCAN_BASE_URL}/address/${address}`;
+
 export const ipfsFileUrl = (ipfsHash: string): string =>
   `${IPFS_GATEWAY_URL}/${ipfsHash}`;
 

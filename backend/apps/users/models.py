@@ -71,6 +71,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     media_organisation = models.CharField(max_length=200, blank=True, default="")
     journaliste_verifie = models.BooleanField(default=False)
     email_verifie = models.BooleanField(default=False)
+    is_blockchain_authorized = models.BooleanField(default=False)
     avatar = models.URLField(blank=True, default="")
     reputation_score = models.IntegerField(default=0)
 

@@ -153,6 +153,9 @@ const AgentDashboard = ({ communeId }: { communeId: number }) => {
   const valides = all.filter(t => t.statut === 'VALIDE');
   const { communes } = useCommunesList();
   const commune = communes.find(c => c.id === communeId);
+  const totalDepensesAgent = valides.reduce((sum, t) => sum + (t.type === 'DEPENSE' ? t.montant_fcfa : 0), 0);
+  const budgetAnnuelAgent = commune?.budget_annuel_fcfa ?? 0;
+  const budgetRestantAgent = budgetAnnuelAgent - totalDepensesAgent;
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState msg={error} />;
@@ -188,7 +191,7 @@ const AgentDashboard = ({ communeId }: { communeId: number }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard label="Mes saisies ce mois" value={all.length} icon={<Receipt className="text-primary" />} />
         <StatsCard label="En attente de validation" value={enAttente.length} icon={<Clock className="text-amber-500" />} />
-        <StatsCard label="Budget disponible" value={(commune?.budget_annuel_fcfa ?? 0) - (commune?.budget_depense_fcfa ?? 0)} isCurrency icon={<Wallet className="text-emerald-500" />} />
+        <StatsCard label="Budget disponible" value={budgetRestantAgent} isCurrency icon={<Wallet className="text-emerald-500" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -245,10 +248,10 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
   const valides = all.filter(t => t.statut === 'VALIDE');
   const { communes } = useCommunesList();
   const commune = communes.find(c => c.id === communeId);
-  
-  const txRate = commune && commune.budget_annuel_fcfa > 0
-    ? ((commune.budget_depense_fcfa / commune.budget_annuel_fcfa) * 100).toFixed(1)
-    : '0.0';
+  const totalDepenses = valides.reduce((sum, t) => sum + (t.type === 'DEPENSE' ? t.montant_fcfa : 0), 0);
+  const budgetAnnuel = commune?.budget_annuel_fcfa ?? 0;
+  const budgetRestant = budgetAnnuel - totalDepenses;
+  const txRate = budgetAnnuel > 0 ? ((totalDepenses / budgetAnnuel) * 100).toFixed(1) : '0.0';
 
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
@@ -269,9 +272,6 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
         abi: BUDGET_LEDGER_ABI,
         functionName: 'validerDepense',
         args: [tx.id, String(tx.commune), BigInt(tx.montant_fcfa), tx.categorie, tx.ipfs_hash || "no-hash"],
-        gas: 200000n,
-        maxPriorityFeePerGas: parseGwei('30'),
-        maxFeePerGas: parseGwei('35'),
       });
 
       console.log("✅ Transaction envoyée ! Hash:", hash);
@@ -327,6 +327,12 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
+            onClick={() => router.push('/commune/recettes/nouvelle')} 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl h-14 px-6 font-black shadow-xl shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-95"
+          >
+            + Nouvelle Recette
+          </Button>
+          <Button 
             onClick={() => router.push('/commune/validation')} 
             className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 px-8 font-black text-base shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
           >
@@ -343,8 +349,8 @@ const MaireDashboard = ({ communeId }: { communeId: number }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard label="Budget Restant" value={(commune?.budget_annuel_fcfa ?? 0) - (commune?.budget_depense_fcfa ?? 0)} isCurrency icon={<Wallet className="text-primary" />} />
-        <StatsCard label="Dépenses Cumulées" value={commune?.budget_depense_fcfa ?? 0} isCurrency icon={<PieChart className="text-amber-500" />} />
+        <StatsCard label="Budget Restant" value={budgetRestant} isCurrency icon={<Wallet className="text-primary" />} />
+        <StatsCard label="Dépenses Cumulées" value={totalDepenses} isCurrency icon={<PieChart className="text-amber-500" />} />
         <StatsCard label="Taux d'exécution" value={`${txRate}%`} icon={<Activity className="text-emerald-500" />} />
         <StatsCard label="Score Transparence" value={commune?.score_transparence ?? 0} icon={<ShieldCheck className="text-purple-500" />} />
       </div>

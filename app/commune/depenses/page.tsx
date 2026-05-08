@@ -7,11 +7,12 @@ import { Drawer } from "@/components/ui/Drawer";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { useCommuneTransactions } from "@/lib/hooks/useTransactions";
-import { type Transaction } from "@/lib/api";
+import { useCommuneTransactions, STATUT_LABELS, STATUT_VARIANT } from "@/lib/hooks/useTransactions";
+import { type Transaction, transactionsApi } from "@/lib/api";
 import { DepenseForm } from "@/components/agent/DepenseForm";
 import StatsCard from "@/components/ui/StatsCard";
-import { Receipt, Wallet, ArrowDownRight } from "lucide-react";
+import { Receipt, Wallet, ArrowDownRight, Pencil, Trash2, FileText } from "lucide-react";
+import { formatFCFA, stripHtml } from "@/lib/constants";
 
 export default function DepensesCommune() {
   const { user } = useAuth();
@@ -22,20 +23,32 @@ export default function DepensesCommune() {
   const depenses = transactions.filter(t => t.type === 'DEPENSE');
   const totalDepense = depenses.reduce((acc, t) => acc + t.montant_fcfa, 0);
 
-  const formatXOF = (amount: number) => new Intl.NumberFormat('fr-CI', { style: 'currency', currency: 'XOF' }).format(amount);
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Supprimer ce brouillon ?")) return;
+    try {
+      await transactionsApi.delete(id);
+      refetch();
+    } catch (err) {
+      alert("Erreur lors de la suppression.");
+    }
+  };
 
   const columns: ColumnConfig<Transaction>[] = [
     {
-      header: 'ID Dépense',
-      key: 'id',
-      render: (val) => <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-tighter">{val.slice(0, 8)}...</span>
+      header: 'Type',
+      key: 'type',
+      render: (val) => (
+        <Badge variant="destructive" className="rounded-full px-3">
+          ↓ Dépense
+        </Badge>
+      )
     },
     {
       header: 'Description',
       key: 'description',
       render: (val, item) => (
         <div>
-          <div className="font-black text-foreground line-clamp-1">{val}</div>
+          <div className="font-black text-foreground line-clamp-1">{stripHtml(val)}</div>
           <div className="text-[10px] font-bold text-primary mt-1 uppercase tracking-widest bg-primary/5 w-fit px-2 py-0.5 rounded-md border border-primary/10">{item.categorie}</div>
         </div>
       )
@@ -43,29 +56,50 @@ export default function DepensesCommune() {
     {
       header: 'Montant',
       key: 'montant_fcfa',
-      render: (val) => <span className="font-black text-rose-600 tabular-nums">-{formatXOF(val)}</span>
+      render: (val) => <span className="font-black text-rose-600 tabular-nums">-{formatFCFA(val)}</span>
     },
     {
-      header: 'Exécution',
+      header: 'Date',
       key: 'created_at',
-      render: (val) => <span className="text-muted-foreground font-medium text-sm">{new Date(val).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+      render: (val) => <span className="text-muted-foreground font-medium text-sm">{new Date(val).toLocaleDateString('fr-FR')}</span>
     },
     {
       header: 'Statut',
       key: 'statut',
       render: (val) => (
-        <Badge variant={val === 'VALIDE' ? 'success' : 'secondary'} className="rounded-full px-3 font-bold">
-          {val === 'VALIDE' ? 'SCELLÉ' : 'À SIGNER'}
+        <Badge variant={STATUT_VARIANT[val] as any ?? 'outline'}>
+          {STATUT_LABELS[val] ?? val}
         </Badge>
       )
     },
     {
       header: 'Actions',
-      key: 'actions',
-      render: (_, item) => (
-        <Link href={`/commune/transactions/${item.id}`}>
-          <Button variant="ghost" size="sm" className="font-bold hover:text-primary rounded-xl">Détails</Button>
-        </Link>
+      key: 'id',
+      render: (val, item) => (
+        <div className="flex items-center gap-2">
+          <Link href={`/commune/transactions/${val}`}>
+            <Button variant="ghost" size="sm" className="h-8 px-2">
+              <FileText className="w-4 h-4" />
+            </Button>
+          </Link>
+          {item.statut === 'BROUILLON' && (
+            <>
+              <Link href={`/commune/transactions/${val}/modifier`}>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-amber-600">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-rose-600"
+                onClick={() => handleDelete(val)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+        </div>
       )
     }
   ];

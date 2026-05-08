@@ -21,7 +21,7 @@ class CommuneSerializer(serializers.ModelSerializer):
         val = getattr(obj, "_budget_depense", None)
         if val is not None:
             return int(val)
-        from apps.transactions.models import Transaction, TransactionStatut, TransactionType
+        from ..transactions.models import Transaction, TransactionStatut, TransactionType
         result = Transaction.objects.filter(
             commune=obj,
             statut=TransactionStatut.VALIDE,
@@ -35,7 +35,7 @@ class CommuneSerializer(serializers.ModelSerializer):
         transparency_score = (transactions_validées / total_transactions) * 100
         Arrondi à 1 décimale, défaut 0.0 si aucune transaction.
         """
-        from apps.transactions.models import Transaction, TransactionStatut
+        from ..transactions.models import Transaction, TransactionStatut
         txs = Transaction.objects.filter(commune=obj)
         total_count = txs.count()
         if total_count == 0:

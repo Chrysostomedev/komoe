@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Transaction, TransactionStatut
-from apps.users.serializers import UserSerializer
-from apps.communes.serializers import CommuneSerializer
+from ..users.serializers import UserSerializer
+from ..communes.serializers import CommuneSerializer
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -76,7 +76,8 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["soumis_par"] = self.context["request"].user
-        validated_data["statut"] = TransactionStatut.SOUMIS
+        # Par défaut, une nouvelle transaction est un BROUILLON
+        validated_data["statut"] = TransactionStatut.BROUILLON
         return super().create(validated_data)
 
 

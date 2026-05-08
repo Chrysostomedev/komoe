@@ -7,12 +7,16 @@ from .views import (
     valider_transaction,
     rejeter_transaction,
     confirmer_hash_soumission,
+    creer_recette_brouillon,
+    confirmer_recette,
     SignalementListCreateView,
 )
 
 urlpatterns = [
     path("", TransactionListView.as_view(), name="transactions-list"),
     path("soumettre/", TransactionCreateView.as_view(), name="transactions-create"),
+    path("recettes/", creer_recette_brouillon, name="recettes-create"),
+    path("recettes/<uuid:pk>/confirmer/", confirmer_recette, name="recettes-confirmer"),
     path("<uuid:pk>/", TransactionDetailView.as_view(), name="transactions-detail"),
     path("<uuid:pk>/valider/", valider_transaction, name="transactions-valider"),
     path("<uuid:pk>/rejeter/", rejeter_transaction, name="transactions-rejeter"),

@@ -58,10 +58,18 @@ class BlockchainService:
         w3 = self._get_w3()
         account = w3.eth.account.from_key(settings.DEPLOYER_PRIVATE_KEY)
         nonce = w3.eth.get_transaction_count(account.address)
+        
+        # B21: Optimisation Gaz (estimation + buffer 10%)
+        try:
+            gas_estimate = func.estimate_gas({"from": account.address})
+            gas_limit = int(gas_estimate * 1.1)
+        except Exception:
+            gas_limit = 500_000 # Fallback sécurisé
+
         tx = func.build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 300_000,
+            "gas": gas_limit,
             "gasPrice": w3.eth.gas_price,
         })
         signed = account.sign_transaction(tx)
@@ -132,3 +140,15 @@ class BlockchainService:
             return contract.functions.totalTransactions().call()
         except Exception:
             return None
+
+    def pause(self) -> str:
+        """Met le contrat en pause (Admin)."""
+        contract = self._get_contract()
+        func = contract.functions.pause()
+        return self._send_transaction(func)
+
+    def unpause(self) -> str:
+        """Sort le contrat de pause (Admin)."""
+        contract = self._get_contract()
+        func = contract.functions.unpause()
+        return self._send_transaction(func)

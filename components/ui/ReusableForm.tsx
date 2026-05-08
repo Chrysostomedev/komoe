@@ -515,7 +515,7 @@ export const RichTextEditor = ({ label, placeholder, name, defaultValue, onChang
   const bgInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && editorRef.current.innerHTML !== (defaultValue ?? "")) {
       editorRef.current.innerHTML = defaultValue ?? "";
       if (hiddenRef.current) hiddenRef.current.value = defaultValue ?? "";
     }

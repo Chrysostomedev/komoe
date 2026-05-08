@@ -2,20 +2,33 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, ExternalLink, Loader2, AlertTriangle, Eye } from "lucide-react";
+import { Clock, ExternalLink, Loader2, AlertTriangle, Eye, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCommuneTransactions } from "@/lib/hooks/useTransactions";
 import { formatFCFA, formatDateShort } from "@/lib/constants";
 import { useRouter } from "next/navigation";
+import { transactionsApi } from "@/lib/api";
+import Link from "next/link";
 
 export default function EnAttentePage() {
   const { user } = useAuth();
   const router = useRouter();
   const communeId = user?.commune ?? null;
-  const { transactions, loading, error } = useCommuneTransactions(communeId);
+  const { transactions, loading, error, refetch } = useCommuneTransactions(communeId);
   const enAttente = transactions.filter(
     (t) => t.statut === "SOUMIS" || t.statut === "BROUILLON"
   );
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm("Supprimer ce brouillon ?")) return;
+    try {
+      await transactionsApi.delete(id);
+      refetch();
+    } catch (err) {
+      alert("Erreur lors de la suppression.");
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -89,7 +102,7 @@ export default function EnAttentePage() {
                     </div>
                   </div>
                 </div>
-                <div className="text-right flex items-center gap-6">
+                <div className="text-right flex items-center gap-4">
                   <div className="hidden sm:block">
                     <p className="font-black text-foreground tabular-nums">{formatFCFA(tx.montant_fcfa)}</p>
                     <div className="flex justify-end mt-1">
@@ -98,8 +111,25 @@ export default function EnAttentePage() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
-                    <Eye className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    {tx.statut === "BROUILLON" && (
+                      <>
+                        <Link href={`/commune/transactions/${tx.id}/modifier`} onClick={(e) => e.stopPropagation()}>
+                          <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-amber-600 hover:bg-amber-50 transition-all">
+                            <Pencil className="w-4 h-4" />
+                          </div>
+                        </Link>
+                        <div 
+                          onClick={(e) => handleDelete(e, tx.id)}
+                          className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-rose-600 hover:bg-rose-50 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </div>
+                      </>
+                    )}
+                    <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
+                      <Eye className="w-4 h-4" />
+                    </div>
                   </div>
                 </div>
               </div>
