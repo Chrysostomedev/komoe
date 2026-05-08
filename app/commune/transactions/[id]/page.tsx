@@ -27,6 +27,8 @@ export default function TransactionDetailPage() {
     if (!isConnected) { alert("Connectez votre portefeuille Maire."); return; }
     if (!confirm("Voulez-vous SIGNER et VALIDER cette transaction sur la blockchain ?")) return;
     
+    if (!tx) return;
+    
     setActionLoading(true);
     try {
       const txHash = await writeContractAsync({
