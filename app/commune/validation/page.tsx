@@ -6,13 +6,13 @@ import { CheckCircle, ExternalLink, ShieldCheck, Loader2, AlertTriangle, XCircle
 import { useAuth } from "@/lib/auth-context";
 import { useCommuneTransactions } from "@/lib/hooks/useTransactions";
 import { transactionsApi } from "@/lib/api";
-import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash } from "@/lib/constants";
+import { formatFCFA, formatDateShort, polygonscanTxUrl, truncateHash, stripHtml } from "@/lib/constants";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWriteContract, useAccount } from "wagmi";
 import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 import { Button } from "@/components/ui/Button";
-import { Drawer } from "@/components/ui/Drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/Drawer";
 import { FormField, Input, RichTextEditor } from "@/components/ui/ReusableForm";
 
 export default function ValidationPage() {
@@ -21,6 +21,14 @@ export default function ValidationPage() {
   const { address, isConnected } = useAccount();
   const communeId = user?.commune ?? null;
   const { transactions, loading, error, refetch } = useCommuneTransactions(communeId);
+  
+  if (user && user.role !== 'MAIRE') {
+    // Redirection de sécurité : L'Agent Financier n'a pas accès à la file de validation
+    if (typeof window !== 'undefined') {
+      router.replace('/commune/dashboard');
+    }
+    return null;
+  }
   
   const { writeContractAsync } = useWriteContract();
   const [signingId, setSigningId] = useState<string | null>(null);
@@ -46,7 +54,7 @@ export default function ValidationPage() {
       const hash = await writeContractAsync({
         address: BUDGET_LEDGER_ADDRESS as `0x${string}`,
         abi: BUDGET_LEDGER_ABI,
-        functionName: 'validerDepense',
+        functionName: tx.type === 'RECETTE' ? 'enregistrerRecette' : 'validerDepense',
         args: [
           tx.id,
           String(tx.commune),
@@ -152,23 +160,49 @@ export default function ValidationPage() {
                   onClick={() => router.push(`/commune/transactions/${tx.id}`)}
                 >
                   <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                    <div className="flex-1 space-y-2">
-                      <p className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{tx.description}</p>
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Badge 
+                          className={`rounded-lg font-black text-[10px] px-3 py-1 ${
+                            tx.type === 'RECETTE' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 'bg-rose-500/10 text-rose-600 border-rose-200'
+                          }`}
+                        >
+                          {tx.type}
+                        </Badge>
+                        <p className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
+                          {stripHtml(tx.description.split("[REJET")[0].trim())}
+                        </p>
+                      </div>
+                      
                       <div className="flex flex-wrap items-center gap-4">
-                        <Badge variant="outline" className="rounded-lg font-bold">{tx.categorie}</Badge>
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{formatDateShort(tx.created_at)}</span>
+                        <Badge variant="outline" className="rounded-lg font-bold border-muted-foreground/20 text-muted-foreground bg-muted/5 italic">
+                          {tx.categorie}
+                        </Badge>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <span className="opacity-50">Saisi par :</span>
+                          <span className="text-foreground">{tx.soumis_par_detail?.full_name || "Agent Financier"}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <span className="opacity-50">Période :</span>
+                          <span className="text-foreground">{tx.periode}</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest ml-auto">
+                          {formatDateShort(tx.created_at)}
+                        </span>
                         {tx.ipfs_hash && (
                           <span className="flex items-center gap-1.5 text-[10px] font-black text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
-                             <ExternalLink size={12} /> Preuve IPFS Scellée
+                             <ExternalLink size={12} /> Preuve IPFS
                           </span>
                         )}
                       </div>
                     </div>
                     
                     <div className="flex flex-row items-center gap-8 w-full lg:w-auto">
-                      <div className="text-left lg:text-right">
+                      <div className="text-left lg:text-right min-w-[150px]">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Montant</p>
-                        <p className="text-2xl font-black text-rose-600 tabular-nums">{formatFCFA(tx.montant_fcfa)}</p>
+                        <p className={`text-2xl font-black tabular-nums ${tx.type === 'RECETTE' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {tx.type === 'RECETTE' ? '+' : '−'} {formatFCFA(tx.montant_fcfa)}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3 ml-auto">
                         <Button
@@ -225,8 +259,17 @@ export default function ValidationPage() {
                 onClick={() => router.push(`/commune/transactions/${tx.id}`)}
               >
                 <div>
-                  <p className="font-black text-foreground">{tx.description}</p>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Validé le {formatDateShort(tx.validated_at ?? tx.created_at)}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${
+                       tx.type === 'RECETTE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'
+                    }`}>
+                      {tx.type}
+                    </span>
+                    <p className="font-black text-foreground">{stripHtml(tx.description)}</p>
+                  </div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    Validé le {formatDateShort(tx.validated_at ?? tx.created_at)} · {tx.soumis_par_detail?.full_name || "Agent"}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
                   {tx.blockchain_tx_hash_validation && (
@@ -248,27 +291,40 @@ export default function ValidationPage() {
       </Card>
 
       {/* Modal de Rejet */}
-      <Drawer isOpen={isRejectModalOpen} onClose={() => setIsRejectModalOpen(false)} title="Rejeter la transaction">
-        <form className="space-y-6" onSubmit={handleRejeterSubmit}>
-          <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 text-red-600 text-sm font-medium leading-relaxed">
-            Attention: Le rejet d'une transaction est une action définitive. L'agent devra corriger la saisie avant de la soumettre à nouveau.
-          </div>
-          
-          <FormField label="Motif du rejet" required>
-            <RichTextEditor
-              name="motif"
-              placeholder="Veuillez expliquer pourquoi cette transaction est rejetée..."
-              onChange={(val: string) => setRejectMotif(val)}
-            />
-          </FormField>
+      <Drawer 
+        isOpen={isRejectModalOpen} 
+        onClose={() => setIsRejectModalOpen(false)} 
+        title="Rejeter la transaction"
+        description="Veuillez spécifier le motif du rejet. Cette action est irréversible et sera notifiée à l'agent financier."
+      >
+        <DrawerContent>
+          <form className="space-y-8 pt-4" onSubmit={handleRejeterSubmit}>
+            <div className="p-6 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-900/30 text-rose-700 dark:text-rose-400 text-sm font-medium leading-relaxed italic">
+              <span className="font-black uppercase tracking-widest text-xs block mb-1">Avertissement Audit</span>
+              Le rejet sera archivé dans le journal de transparence de la commune. L&apos;agent pourra modifier et soumettre à nouveau après correction.
+            </div>
+            
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] italic">Motif du rejet</label>
+              <RichTextEditor
+                name="motif"
+                placeholder="Veuillez expliquer pourquoi cette transaction est rejetée..."
+                onChange={(val: string) => setRejectMotif(val)}
+              />
+            </div>
 
-          <div className="pt-6 border-t border-border flex justify-end gap-3">
-             <Button variant="ghost" type="button" onClick={() => { setIsRejectModalOpen(false); setRejectMotif(""); }}>Annuler</Button>
-             <Button type="submit" disabled={rejectLoading || !rejectMotif.trim()} className="bg-red-600 hover:bg-red-700 text-white rounded-xl">
-               {rejectLoading ? "Rejet en cours..." : "Confirmer le Rejet"}
-             </Button>
-          </div>
-        </form>
+            <div className="pt-8 border-t border-border flex justify-end gap-4 pb-10">
+               <Button variant="ghost" type="button" onClick={() => { setIsRejectModalOpen(false); setRejectMotif(""); }} className="font-bold rounded-xl h-14 px-8">Annuler</Button>
+               <Button 
+                type="submit" 
+                disabled={rejectLoading || !rejectMotif.trim()} 
+                className="bg-rose-600 hover:bg-rose-700 text-white min-w-[200px] h-14 rounded-2xl font-black text-lg shadow-xl shadow-rose-500/20 transition-all hover:scale-[1.02] active:scale-95"
+               >
+                 {rejectLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirmer le Rejet"}
+               </Button>
+            </div>
+          </form>
+        </DrawerContent>
       </Drawer>
     </div>
   );

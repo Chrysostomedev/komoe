@@ -18,7 +18,7 @@ export default function PublicBlockchainPage() {
   useEffect(() => {
     async function fetchBlocks() {
       try {
-        const rpcUrl = "https://polygon-amoy.g.alchemy.com/v2/3BGABwHIJ4eeNCK9XwA6r";
+        const rpcUrl = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://rpc-amoy.polygon.technology";
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         const current = await provider.getBlockNumber();
         const blocks: number[] = [];

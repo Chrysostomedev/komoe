@@ -361,14 +361,20 @@
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "address", "name": "wallet", "type": "address" }],
+    "inputs": [
+      { "internalType": "address", "name": "wallet", "type": "address" },
+      { "internalType": "string", "name": "communeId", "type": "string" }
+    ],
     "name": "attribuerRoleAgent",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "address", "name": "wallet", "type": "address" }],
+    "inputs": [
+      { "internalType": "address", "name": "wallet", "type": "address" },
+      { "internalType": "string", "name": "communeId", "type": "string" }
+    ],
     "name": "attribuerRoleMaire",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -383,6 +389,19 @@
       { "internalType": "string", "name": "ipfsHash", "type": "string" }
     ],
     "name": "enregistrerRecette",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "recetteId", "type": "string" },
+      { "internalType": "string", "name": "communeId", "type": "string" },
+      { "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "internalType": "string", "name": "source", "type": "string" },
+      { "internalType": "string", "name": "ipfsHash", "type": "string" }
+    ],
+    "name": "soumettreRecette",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

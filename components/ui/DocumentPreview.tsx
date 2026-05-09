@@ -31,7 +31,7 @@ export function DocumentPreview({ fileName, fileSize = "2.4 MB", type = 'pdf', o
             <Eye size={16} /> <span className="hidden sm:inline">Aperçu</span>
           </Button>
           {onDownload && (
-            <Button size="sm" onClick={onDownload} className="bg-brand-blue hover:bg-[#000060] text-white gap-2">
+            <Button size="sm" onClick={onDownload} className="bg-brand-blue hover:bg-brand-blue/90 text-white gap-2">
               <Download size={16} /> <span className="hidden sm:inline">Télécharger</span>
             </Button>
           )}
@@ -39,19 +39,19 @@ export function DocumentPreview({ fileName, fileSize = "2.4 MB", type = 'pdf', o
       </div>
 
       {isPreviewOpen && (
-        <div className="fixed inset-0 z-[100] bg-primary/90 flex flex-col animate-in fade-in duration-200">
-          <div className="p-4 flex justify-between items-center bg-primary text-white">
+        <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-200">
+          <div className="p-4 flex justify-between items-center bg-card border-b border-border text-foreground">
             <div className="flex items-center gap-3">
               <FileText />
               <span className="font-medium">{fileName}</span>
             </div>
             <div className="flex items-center gap-4">
               {onDownload && (
-                <Button variant="ghost" size="sm" onClick={onDownload} className="text-white hover:bg-card/10 gap-2">
+                <Button variant="ghost" size="sm" onClick={onDownload} className="text-foreground hover:bg-muted gap-2">
                   <Download size={16} /> Télécharger l'original
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={() => setIsPreviewOpen(false)} className="text-white hover:bg-red-500/20 hover:text-red-400">
+              <Button variant="ghost" size="sm" onClick={() => setIsPreviewOpen(false)} className="text-muted-foreground hover:bg-red-500/10 hover:text-red-500">
                 <X size={24} />
               </Button>
             </div>
@@ -59,7 +59,7 @@ export function DocumentPreview({ fileName, fileSize = "2.4 MB", type = 'pdf', o
           <div className="flex-1 p-8 flex items-center justify-center overflow-auto">
             {/* Simuler le rendu PDF ou Image */}
             <div className="w-full max-w-4xl min-h-[800px] bg-card rounded-sm shadow-2xl p-12 flex flex-col items-center justify-center text-muted-foreground border-t-8 border-brand-blue">
-              <FileText size={64} className="mb-4 text-slate-200" />
+              <FileText size={64} className="mb-4 text-muted/30" />
               <p className="text-xl font-medium text-foreground">Aperçu du document sécurisé</p>
               <p className="text-sm mt-2">Ce document est scellé par la blockchain KOMOE.</p>
               <div className="mt-8 border border-border p-4 rounded bg-muted text-xs font-mono w-full max-w-lg text-center break-all">

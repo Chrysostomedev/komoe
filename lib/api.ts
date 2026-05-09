@@ -106,13 +106,15 @@ export interface RegisterPayload {
   role?: string; profession?: string;
   password: string; password_confirm: string;
   telephone?: string; media_organisation?: string;
+  commune?: number; date_naissance?: string;
+  secondary_roles?: string[]; // ex: ['JOURNALISTE', 'BAILLEUR']
 }
 export interface UserProfile {
   id: string; email: string; nom: string; prenom: string; full_name: string;
   role: string; profession: string; commune: number | null; commune_nom: string | null;
   wallet_address: string; journaliste_verifie: boolean;
   email_verifie: boolean; is_blockchain_authorized: boolean; avatar: string; reputation_score: number;
-  is_active: boolean; date_joined: string; telephone?: string;
+  is_active: boolean; is_verified: boolean; is_expert: boolean; date_joined: string; telephone?: string;
 }
 
 export const authApi = {
@@ -157,6 +159,18 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ action }),
     }),
+
+  updateMe: (payload: Partial<UserProfile>) =>
+    apiFetch<UserProfile>("/api/auth/me/", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  detail: (id: string) => apiFetch<UserProfile>(`/api/auth/users/${id}/`),
+  
+  delete: (id: string) => apiFetch<void>(`/api/auth/users/${id}/`, {
+    method: "DELETE",
+  }),
 };
 
 // ─── API Communes ─────────────────────────────────────────────────────────────
@@ -173,6 +187,8 @@ export interface Commune {
 export interface CommuneListFilters {
   search?: string;
   region?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export const communesApi = {
@@ -180,12 +196,19 @@ export const communesApi = {
     const params = new URLSearchParams();
     if (filters?.search) params.set("search", filters.search);
     if (filters?.region) params.set("region", filters.region);
+    if (filters?.limit) params.set("limit", String(filters.limit));
+    if (filters?.offset) params.set("offset", String(filters.offset));
     const qs = params.toString();
     return apiFetch<{ results: Commune[]; count: number }>(
       `/api/communes/${qs ? `?${qs}` : ""}`
     );
   },
   detail: (id: number) => apiFetch<Commune>(`/api/communes/${id}/`),
+  update: (id: number, payload: Partial<Commune>) =>
+    apiFetch<Commune>(`/api/communes/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ─── API Transactions ─────────────────────────────────────────────────────────
@@ -207,6 +230,8 @@ export interface TransactionListFilters {
   commune?: number;
   type?: "DEPENSE" | "RECETTE";
   statut?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface TransactionCreatePayload {
@@ -226,6 +251,8 @@ export const transactionsApi = {
     if (filters?.commune) params.set("commune", String(filters.commune));
     if (filters?.type) params.set("type", filters.type);
     if (filters?.statut) params.set("statut", filters.statut);
+    if (filters?.limit) params.set("limit", String(filters.limit));
+    if (filters?.offset) params.set("offset", String(filters.offset));
     const qs = params.toString();
     return apiFetch<{ results: Transaction[]; count: number }>(
       `/api/transactions/${qs ? `?${qs}` : ""}`
@@ -236,6 +263,8 @@ export const transactionsApi = {
     const params = new URLSearchParams();
     if (filters?.statut) params.set("statut", filters.statut);
     if (filters?.type) params.set("type", filters.type);
+    if (filters?.limit) params.set("limit", String(filters.limit));
+    if (filters?.offset) params.set("offset", String(filters.offset));
     const qs = params.toString();
     return apiFetch<{ results: Transaction[]; count: number }>(
       `/api/transactions/commune/${communeId}/${qs ? `?${qs}` : ""}`
@@ -311,9 +340,11 @@ export interface Signalement {
   commune_detail: Commune;
   sujet: string;
   description: string;
+  transaction: string | null;
   auteur: string | null;
   auteur_detail: UserProfile | null;
   is_reviewed: boolean;
+  nb_preuves: number;
   created_at: string;
 }
 
@@ -321,21 +352,128 @@ export interface SignalementCreatePayload {
   commune: number;
   sujet: string;
   description: string;
+  transaction?: string | null;
 }
 
-export const signalementsApi = {
-  list: (filters?: { commune?: number }) => {
+export interface PreuveSignalement {
+  id: string;
+  signalement: string;
+  ipfs_hash: string;
+  ipfs_url: string;
+  nom_fichier: string;
+  type_fichier: "image" | "pdf" | "autre";
+  uploaded_at: string;
+}
+
+
+// ─── H3 : Propositions de dépenses ──────────────────────────────────────────
+
+export interface Proposition {
+  id: string;
+  commune: number;
+  commune_detail?: { id: number; nom: string; region: string };
+  titre: string;
+  description: string;
+  categorie: string;
+  budget_demande_fcfa: number;
+  soumis_par?: string;
+  soumis_par_detail?: { id: string; full_name: string };
+  statut: "ACTIVE" | "VALIDEE" | "REJETEE" | "EXPIREE" | "CONVERTIE";
+  deadline_vote: string | null;
+  nb_soutiens: number;
+  nb_oppositions: number;
+  score_vote: number;
+  pct_soutien: number;
+  mon_vote: "SOUTIEN" | "OPPOSITION" | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropositionCreatePayload {
+  commune: number;
+  titre: string;
+  description: string;
+  categorie: string;
+  budget_demande_fcfa: number;
+}
+
+export const propositionsApi = {
+  list: (filters?: { commune?: number; statut?: string }) => {
     const params = new URLSearchParams();
     if (filters?.commune) params.set("commune", String(filters.commune));
+    if (filters?.statut) params.set("statut", filters.statut);
     const qs = params.toString();
-    return apiFetch<{ results: Signalement[]; count: number }>(
-      `/api/transactions/signalements/${qs ? `?${qs}` : ""}`
+    return apiFetch<{ results: Proposition[]; count: number }>(
+      `/api/transactions/propositions/${qs ? `?${qs}` : ""}`
     );
   },
-  create: (payload: SignalementCreatePayload) =>
-    apiFetch<Signalement>("/api/transactions/signalements/", {
+  detail: (id: string) =>
+    apiFetch<Proposition>(`/api/transactions/propositions/${id}/`),
+  create: (payload: PropositionCreatePayload) =>
+    apiFetch<Proposition>("/api/transactions/propositions/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  voter: (id: string, type_vote: "SOUTIEN" | "OPPOSITION") =>
+    apiFetch<{ message: string; nb_soutiens: number; nb_oppositions: number; pct_soutien: number; statut: string }>(
+      `/api/transactions/propositions/${id}/voter/`,
+      { method: "POST", body: JSON.stringify({ type_vote }) }
+    ),
+  retirerVote: (id: string) =>
+    apiFetch<{ message: string }>(`/api/transactions/propositions/${id}/voter/`, { method: "DELETE" }),
 };
 
+
+// ─── Phase 2 : Rapports & Notifications ──────────────────────────────────────
+
+export interface AppNotification {
+  id: string;
+  titre: string;
+  message: string;
+  type_notif: "TRANSACTION" | "VOTE" | "PROPOSITION" | "SIGNALEMENT" | "SYSTEME";
+  is_read: boolean;
+  created_at: string;
+}
+
+export const rapportsApi = {
+  getDownloadUrl: (communeId: number) => 
+    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/transactions/commune/${communeId}/rapport/`,
+};
+
+export const notificationsApi = {
+  list: () => apiFetch<AppNotification[]>("/api/transactions/notifications/"),
+  marquerLues: () => apiFetch<{ message: string }>("/api/transactions/notifications/read/", { method: "PATCH" }),
+  getStreamUrl: () => `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/transactions/notifications/stream/`,
+};
+
+export const signalementsApi = {
+  list: (params?: { commune?: number; mes_signalements?: boolean }) => {
+    const search = new URLSearchParams();
+    if (params?.commune) search.set("commune", params.commune.toString());
+    if (params?.mes_signalements) search.set("mes_signalements", "true");
+    return apiFetch<any>(`/api/transactions/signalements/?${search.toString()}`);
+  },
+  detail: (id: string) => apiFetch<Signalement>(`/api/transactions/signalements/${id}/`),
+  create: (data: SignalementCreatePayload) => apiFetch<Signalement>("/api/transactions/signalements/", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Signalement>) => apiFetch<Signalement>(`/api/transactions/signalements/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  voter: (id: string, verdict: "CREDIBLE" | "INFONDE") => 
+    apiFetch<any>(`/api/transactions/signalements/${id}/voter/`, { method: "POST", body: JSON.stringify({ verdict }) }),
+  ajouterPreuve: (id: string, data: { ipfs_hash: string; ipfs_url: string; nom_fichier: string; type_fichier: string }) => 
+    apiFetch<PreuveSignalement>(`/api/transactions/signalements/${id}/preuves/`, { method: "POST", body: JSON.stringify(data) }),
+};
+
+export const anomaliesApi = {
+  list: () => apiFetch<{ anomalies: any[] }>("/api/transactions/anomalies/"),
+};
+
+export const openDataApi = {
+  getStats: () => apiFetch<any>("/api/transactions/open/stats/"),
+};
+
+export const projetsApi = {
+  list: (communeId?: number) => {
+    const url = communeId ? `/api/communes/projets/?commune=${communeId}` : "/api/communes/projets/";
+    return apiFetch<any[]>(url);
+  },
+  getDetail: (id: number) => apiFetch<any>(`/api/communes/projets/${id}/`),
+};

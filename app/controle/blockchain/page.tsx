@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Network, ExternalLink, CheckCircle, Zap, Loader2 } from "lucide-react";
 import { useTransactionsList } from "@/lib/hooks/useTransactions";
-import { truncateHash, polygonscanTxUrl, formatDateShort } from "@/lib/constants";
+import { truncateHash, polygonscanTxUrl, formatDateShort, stripHtml } from "@/lib/utils";
+import { BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 
 export default function BlockchainPage() {
-  const { transactions, loading } = useTransactionsList();
-  const txs = transactions.filter((t) => t.blockchain_tx_hash_validation);
+  const { transactions = [], loading } = useTransactionsList();
+  const txs = transactions.filter((t: any) => t.blockchain_tx_hash_validation);
 
   return (
     <div className="space-y-6">
@@ -49,7 +50,7 @@ export default function BlockchainPage() {
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-xs bg-card border border-purple-200 px-2 py-1 rounded text-purple-700">
-                  0x0000…(déploiement Phase 2)
+                  {BUDGET_LEDGER_ADDRESS}
                 </span>
                 <Badge variant="secondary">Phase 1 — Démo</Badge>
               </div>
@@ -72,7 +73,7 @@ export default function BlockchainPage() {
             <div key={tx.id} className="p-4 rounded-xl bg-muted border border-border space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-sm text-foreground">{tx.description}</p>
+                  <p className="font-semibold text-sm text-foreground">{stripHtml(tx.description)}</p>
                   <p className="text-xs text-muted-foreground">{tx.categorie} · {formatDateShort(tx.validated_at ?? tx.created_at)}</p>
                 </div>
                 <Badge variant="success" className="shrink-0">

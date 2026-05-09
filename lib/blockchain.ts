@@ -1,13 +1,26 @@
 export const BUDGET_LEDGER_ABI = [
   {
     "inputs": [
-      { "internalType": "string", "name": "_id", "type": "string" },
-      { "internalType": "string", "name": "_commune", "type": "string" },
-      { "internalType": "uint256", "name": "_montant", "type": "uint256" },
-      { "internalType": "string", "name": "_categorie", "type": "string" },
-      { "internalType": "string", "name": "_ipfsHash", "type": "string" }
+      { "internalType": "string", "name": "depenseId", "type": "string" },
+      { "internalType": "string", "name": "communeId", "type": "string" },
+      { "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "internalType": "string", "name": "categorie", "type": "string" },
+      { "internalType": "string", "name": "ipfsHash", "type": "string" }
     ],
     "name": "soumettreDepense",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "recetteId", "type": "string" },
+      { "internalType": "string", "name": "communeId", "type": "string" },
+      { "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "internalType": "string", "name": "source", "type": "string" },
+      { "internalType": "string", "name": "ipfsHash", "type": "string" }
+    ],
+    "name": "soumettreRecette",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -26,13 +39,6 @@ export const BUDGET_LEDGER_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "totalTransactions",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       { "internalType": "string", "name": "recetteId", "type": "string" },
       { "internalType": "string", "name": "communeId", "type": "string" },
@@ -46,14 +52,27 @@ export const BUDGET_LEDGER_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "address", "name": "wallet", "type": "address" }],
+    "inputs": [],
+    "name": "totalTransactions",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "wallet", "type": "address" },
+      { "internalType": "string", "name": "communeId", "type": "string" }
+    ],
     "name": "attribuerRoleAgent",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "address", "name": "wallet", "type": "address" }],
+    "inputs": [
+      { "internalType": "address", "name": "wallet", "type": "address" },
+      { "internalType": "string", "name": "communeId", "type": "string" }
+    ],
     "name": "attribuerRoleMaire",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -82,6 +101,62 @@ export const BUDGET_LEDGER_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "string", "name": "depenseId", "type": "string" },
+      { "indexed": true, "internalType": "string", "name": "communeId", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "categorie", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "soumisePar", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "DepenseSoumise",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "string", "name": "depenseId", "type": "string" },
+      { "indexed": true, "internalType": "string", "name": "communeId", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "categorie", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "validePar", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "DepenseValidee",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "string", "name": "recetteId", "type": "string" },
+      { "indexed": true, "internalType": "string", "name": "communeId", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "source", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "parAgent", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "RecetteSoumise",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "string", "name": "recetteId", "type": "string" },
+      { "indexed": true, "internalType": "string", "name": "communeId", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "montant", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "source", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "indexed": true, "internalType": "address", "name": "enregistreePar", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "RecetteEnregistree",
+    "type": "event"
   }
 ] as const;
 

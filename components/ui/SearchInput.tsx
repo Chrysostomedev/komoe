@@ -12,7 +12,7 @@ export default function SearchInput({ onSearch, placeholder }: any) {
         type="search" 
         placeholder={placeholder || "Rechercher..."} 
         onChange={(e) => onSearch(e.target.value)} 
-        className="w-full bg-muted border-none rounded-xl py-3 pl-10 pr-4 text-sm text-foreground outline-none focus:ring-2 focus:ring-brand-blue transition-all" 
+        className="w-full bg-muted border border-border rounded-xl py-3 pl-10 pr-4 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary transition-all" 
       />
     </div>
   );

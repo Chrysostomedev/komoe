@@ -150,7 +150,8 @@ export const DepenseForm = ({ initialData, onSuccess, onCancel }: DepenseFormPro
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField label="Nature de l'opération" required>
                 <Select required value={form.type} onChange={(e: any) => setForm(f => ({ ...f, type: e.target.value }))}>
-                  <option value="DEPENSE">Dépense (Décaissement)</option>
+                  <option value="DEPENSE" className="bg-background text-foreground">Dépense (Décaissement)</option>
+                  <option value="RECETTE" className="bg-background text-foreground">Recette (Encaissement)</option>
                 </Select>
               </FormField>
 
@@ -176,14 +177,14 @@ export const DepenseForm = ({ initialData, onSuccess, onCancel }: DepenseFormPro
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField label="Domaine d'intervention (ODD)" required>
                 <Select required value={form.categorie} onChange={(e: any) => setForm(f => ({ ...f, categorie: e.target.value }))}>
-                  <option value="Infrastructure">Infrastructures & Travaux (ODD 9)</option>
-                  <option value="Sante">Santé & Bien-être (ODD 3)</option>
-                  <option value="Education">Éducation de qualité (ODD 4)</option>
-                  <option value="Eau">Eau & Assainissement (ODD 6)</option>
-                  <option value="Administration">Fonctionnement administratif</option>
-                  <option value="Agriculture">Agriculture & Souveraineté (ODD 2)</option>
-                  <option value="Social">Action Sociale & Solidarité</option>
-                  <option value="Autre">Autres interventions</option>
+                  <option value="INFRASTRUCTURE" className="bg-background text-foreground">Infrastructures & Travaux (ODD 9)</option>
+                  <option value="SANTE" className="bg-background text-foreground">Santé & Bien-être (ODD 3)</option>
+                  <option value="EDUCATION" className="bg-background text-foreground">Éducation de qualité (ODD 4)</option>
+                  <option value="EAU_ASSAINISSEMENT" className="bg-background text-foreground">Eau & Assainissement (ODD 6)</option>
+                  <option value="ADMINISTRATION" className="bg-background text-foreground">Fonctionnement administratif</option>
+                  <option value="AGRICULTURE" className="bg-background text-foreground">Agriculture & Souveraineté (ODD 2)</option>
+                  <option value="CULTURE_SPORT" className="bg-background text-foreground">Culture & Sport</option>
+                  <option value="AUTRE" className="bg-background text-foreground">Autres interventions</option>
                 </Select>
               </FormField>
 

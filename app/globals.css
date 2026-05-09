@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   /* THEME CLAIR (LIGHT MODE) */
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -31,10 +32,16 @@
   --input: #e2e8f0;
   --ring: #FF8200;
   
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+
   --radius: 1rem;
 }
 
 .dark {
+  color-scheme: dark;
   /* THEME SOMBRE (DARK MODE) */
   --background: #020617;
   --foreground: #f8fafc;
@@ -59,11 +66,16 @@
   --neutral: #94a3b8;
   --muted: rgba(255, 255, 255, 0.05);
   --muted-foreground: #94a3b8;
-  --destructive: #7f1d1d;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
   --ring: #FF8200;
+
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
 }
 
 @theme {
@@ -93,7 +105,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-brand-blue: var(--secondary);
+  --color-brand-blue: var(--brand-blue);
   --color-brand-orange: var(--primary);
 
   --radius-lg: var(--radius);
@@ -102,6 +114,28 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Fix native form elements visibility across themes */
+select option {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+input[type="month"],
+input[type="date"],
+input[type="datetime-local"] {
+  color-scheme: inherit;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
 }
 
 body {

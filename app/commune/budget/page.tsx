@@ -3,141 +3,128 @@
 import { Card, CardContent } from "@/components/ui/Card";
 import StatsCard from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/Button";
-import { Drawer } from "@/components/ui/Drawer";
-import { QuoteItemsInput, QuoteItemData } from "@/components/ui/QuoteItemsInput";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Loader2, CheckCircle2, PieChart, Receipt, Wallet } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useCommuneDetail } from "@/lib/hooks/useCommunes";
+import { useCommuneTransactions } from "@/lib/hooks/useTransactions";
+import { formatFCFA, stripHtml } from "@/lib/constants";
 
 export default function BudgetCommune() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [quoteItems, setQuoteItems] = useState<QuoteItemData[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const { user } = useAuth();
+  const communeId = user?.commune;
+  
+  const { commune, loading: loadingCommune } = useCommuneDetail(communeId ?? null);
+  const { transactions, loading: loadingTx } = useCommuneTransactions(communeId ?? null, { statut: 'VALIDE' });
+  
 
-  const handleBudgetSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  // Calculs réels
+  const stats = useMemo(() => {
+    const budgetInitial = commune?.budget_annuel_fcfa ?? 0;
+    const totalDepenses = transactions.reduce((sum, tx) => sum + (tx.type === 'DEPENSE' ? tx.montant_fcfa : 0), 0);
+    const totalRecettes = transactions.reduce((sum, tx) => sum + (tx.type === 'RECETTE' ? tx.montant_fcfa : 0), 0);
+    const reste = budgetInitial + totalRecettes - totalDepenses;
     
-    // Simulation d'une requête API vers la blockchain / backend
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setIsSuccess(true);
-      setTimeout(() => {
-        setIsDrawerOpen(false);
-        setIsSuccess(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Erreur lors de la soumission du budget:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    // Distribution par catégorie (Dépenses seulement pour le graphique)
+    const categories: Record<string, number> = {};
+    transactions.filter(t => t.type === 'DEPENSE').forEach(tx => {
+      categories[tx.categorie] = (categories[tx.categorie] || 0) + tx.montant_fcfa;
+    });
+
+    const distribution = Object.entries(categories).map(([name, amount]) => ({
+      name,
+      amount,
+      percentage: totalDepenses > 0 ? (amount / totalDepenses) * 100 : 0
+    })).sort((a, b) => b.amount - a.amount);
+
+    return {
+      budgetInitial,
+      totalDepenses,
+      totalRecettes,
+      reste,
+      distribution
+    };
+  }, [commune, transactions]);
+
+
+
+  if (loadingCommune || loadingTx) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground animate-pulse">Chargement des données réelles...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="mb-8 flex justify-between items-end">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Gestion du Budget</h2>
-          <p className="text-muted-foreground mt-1 font-medium text-sm">Répartition et allocation des fonds pour l'année en cours.</p>
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Gestion du Budget — {commune?.nom}</h2>
+          <p className="text-muted-foreground mt-1 font-medium text-sm">Répartition et allocation des fonds basées sur les transactions certifiées.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 rounded-2xl h-14 px-8 font-black text-base transition-all hover:scale-[1.02] active:scale-95" onClick={() => setIsDrawerOpen(true)}>
-          + Nouveau Budget Primitif
-        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <StatsCard label="Budget Primitif (2026)" value={500000000} isCurrency icon={<PieChart className="text-primary" />} />
-        <StatsCard label="Fonds Engagés" value={125000000} isCurrency trend="up" delta="25%" icon={<Receipt className="text-rose-500" />} />
-        <StatsCard label="Reste à Réaliser" value={375000000} isCurrency trend="down" icon={<Wallet className="text-emerald-500" />} />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        <StatsCard label="Budget Initial (Dotation)" value={stats.budgetInitial} isCurrency icon={<PieChart className="text-primary" />} />
+        <StatsCard label="Recettes Locales" value={stats.totalRecettes} isCurrency icon={<Receipt className="text-emerald-500" />} />
+        <StatsCard label="Dépenses Cumulées" value={stats.totalDepenses} isCurrency trend={stats.totalDepenses > 0 ? "up" : undefined} icon={<Receipt className="text-rose-500" />} />
+        <StatsCard label="Reste à Réaliser" value={stats.reste} isCurrency trend={stats.reste < 0 ? "down" : "up"} icon={<Wallet className="text-blue-500" />} />
       </div>
 
       <Card className="shadow-2xl border-border rounded-[32px] overflow-hidden border bg-card/40 backdrop-blur-xl">
         <CardContent className="p-10">
           <h3 className="text-xl font-black text-foreground mb-8 uppercase tracking-widest flex items-center gap-3">
              <span className="w-2 h-6 bg-primary rounded-full"></span>
-             Répartition par ligne budgétaire
+             Répartition réelle des dépenses validées
           </h3>
-          <div className="space-y-8">
-            <div className="group">
-              <div className="flex justify-between text-sm font-black text-foreground mb-3 uppercase tracking-tighter">
-                <span className="group-hover:text-primary transition-colors">Infrastructures & Travaux Publics</span>
-                <span className="tabular-nums">45%</span>
-              </div>
-              <div className="w-full bg-muted/50 rounded-full h-3.5 p-0.5 border border-border">
-                <div className="bg-primary h-full rounded-full shadow-lg shadow-primary/20 transition-all duration-1000" style={{ width: '45%' }}></div>
-              </div>
+          
+          {stats.distribution.length > 0 ? (
+            <div className="space-y-8">
+              {stats.distribution.map((item, idx) => (
+                <div key={item.name} className="group">
+                  <div className="flex justify-between text-sm font-black text-foreground mb-3 uppercase tracking-tighter">
+                    <span className="group-hover:text-primary transition-colors">{item.name}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10px] text-muted-foreground">{formatFCFA(item.amount)}</span>
+                      <span className="tabular-nums">{item.percentage.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-muted/50 rounded-full h-3.5 p-0.5 border border-border">
+                    <div 
+                      className={`h-full rounded-full shadow-lg transition-all duration-1000 ${
+                        idx === 0 ? 'bg-primary shadow-primary/20' : 
+                        idx === 1 ? 'bg-amber-500 shadow-amber-500/20' : 
+                        idx === 2 ? 'bg-emerald-500 shadow-emerald-500/20' : 
+                        'bg-blue-500 shadow-blue-500/20'
+                      }`} 
+                      style={{ width: `${item.percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="group">
-              <div className="flex justify-between text-sm font-black text-foreground mb-3 uppercase tracking-tighter">
-                <span className="group-hover:text-amber-500 transition-colors">Santé & Action Sociale</span>
-                <span className="tabular-nums">25%</span>
-              </div>
-              <div className="w-full bg-muted/50 rounded-full h-3.5 p-0.5 border border-border">
-                <div className="bg-amber-500 h-full rounded-full shadow-lg shadow-amber-500/20 transition-all duration-1000" style={{ width: '25%' }}></div>
-              </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-center">
+              <PieChart className="w-12 h-12 mb-4 opacity-10" />
+              <p className="text-sm font-bold uppercase tracking-widest opacity-40">Aucune dépense validée pour le moment</p>
+              <p className="text-xs mt-2">La répartition s'affichera dès que le Maire aura validé des transactions.</p>
             </div>
-            <div className="group">
-              <div className="flex justify-between text-sm font-black text-foreground mb-3 uppercase tracking-tighter">
-                <span className="group-hover:text-emerald-500 transition-colors">Éducation & Culture</span>
-                <span className="tabular-nums">20%</span>
-              </div>
-              <div className="w-full bg-muted/50 rounded-full h-3.5 p-0.5 border border-border">
-                <div className="bg-emerald-500 h-full rounded-full shadow-lg shadow-emerald-500/20 transition-all duration-1000" style={{ width: '20%' }}></div>
-              </div>
-            </div>
-            <div className="group">
-              <div className="flex justify-between text-sm font-black text-foreground mb-3 uppercase tracking-tighter">
-                <span className="group-hover:text-muted-foreground transition-colors">Fonctionnement</span>
-                <span className="tabular-nums">10%</span>
-              </div>
-              <div className="w-full bg-muted/50 rounded-full h-3.5 p-0.5 border border-border mb-3">
-                <div className="bg-muted-foreground/30 h-full rounded-full transition-all duration-1000" style={{ width: '10%' }}></div>
-              </div>
-              <div className="text-right">
-                <Link href="/commune/budget/fonctionnement" className="text-[10px] text-primary hover:underline font-black uppercase tracking-widest">Détails des frais de fonctionnement →</Link>
-              </div>
-            </div>
+          )}
+
+          <div className="mt-12 pt-8 border-t border-border flex justify-between items-center">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest italic">
+              Données certifiées par la blockchain Polygon
+            </p>
+            <Link href="/commune/transactions" className="text-[10px] text-primary hover:underline font-black uppercase tracking-widest">
+              Consulter le journal des transactions →
+            </Link>
           </div>
         </CardContent>
       </Card>
 
-      <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} title="Voter un Nouveau Budget Primitif">
-        {isSuccess ? (
-          <div className="flex flex-col items-center justify-center py-20 animate-in zoom-in-95 duration-300">
-            <div className="w-24 h-24 bg-emerald-500/10 rounded-[32px] flex items-center justify-center mb-6 shadow-inner">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-            </div>
-            <h3 className="text-2xl font-black text-foreground tracking-tight">Budget Soumis !</h3>
-            <p className="text-muted-foreground mt-3 text-center max-w-xs font-medium">Le budget a été scellé en attente de la signature du Maire sur la blockchain.</p>
-          </div>
-        ) : (
-          <form className="space-y-8" onSubmit={handleBudgetSubmit}>
-            <div className="space-y-3">
-              <label className="text-sm font-black text-foreground uppercase tracking-widest">Lignes Budgétaires (Prévisions)</label>
-              <p className="text-xs text-muted-foreground font-medium mb-6 leading-relaxed">Saisissez les montants alloués pour chaque grande ligne. Un hash d'intégrité sera généré à la soumission.</p>
-              <QuoteItemsInput onChange={setQuoteItems} />
-            </div>
-
-            <div className="pt-8 border-t border-border flex justify-end gap-4">
-              <Button variant="ghost" type="button" onClick={() => setIsDrawerOpen(false)} disabled={isSubmitting} className="font-bold rounded-xl h-14 px-8">
-                Annuler
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary hover:bg-primary/90 text-white min-w-[220px] h-14 rounded-2xl font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
-                disabled={isSubmitting || quoteItems.length === 0}
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" /> Signature...
-                  </span>
-                ) : "Soumettre le Budget"}
-              </Button>
-            </div>
-          </form>
-        )}
-      </Drawer>
     </div>
   );
 }

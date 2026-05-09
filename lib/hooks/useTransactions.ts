@@ -37,10 +37,12 @@ export function useTransactionsList(filters?: TransactionListFilters, enabled = 
     setError(null);
     try {
       const res = await transactionsApi.list({ commune, type, statut });
-      setTransactions(res.results ?? []);
-      setCount(res.count ?? 0);
-    } catch {
-      setError("Impossible de charger les transactions.");
+      const results = Array.isArray(res) ? res : (res as any)?.results || [];
+      const total = Array.isArray(res) ? res.length : (res as any)?.count || 0;
+      setTransactions(results);
+      setCount(total);
+    } catch (err: any) {
+      setError(err?.message || "Impossible de charger les transactions.");
     } finally {
       setLoading(false);
     }
@@ -71,10 +73,12 @@ export function useCommuneTransactions(
     setError(null);
     try {
       const res = await transactionsApi.byCommune(communeId, { statut, type });
-      setTransactions(res.results ?? []);
-      setCount(res.count ?? 0);
-    } catch {
-      setError("Impossible de charger les transactions.");
+      const results = Array.isArray(res) ? res : (res as any)?.results || [];
+      const total = Array.isArray(res) ? res.length : (res as any)?.count || 0;
+      setTransactions(results);
+      setCount(total);
+    } catch (err: any) {
+      setError(err?.message || "Impossible de charger les transactions.");
     } finally {
       setLoading(false);
     }

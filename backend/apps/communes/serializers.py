@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db.models import Sum
-from .models import Commune
+from .models import Commune, Projet
 
 
 class CommuneSerializer(serializers.ModelSerializer):
@@ -30,19 +30,23 @@ class CommuneSerializer(serializers.ModelSerializer):
         return int(result["total"] or 0)
 
     def get_score_transparence(self, obj):
-        """
-        Calcul du score de transparence (sur 100 points) :
-        transparency_score = (transactions_validées / total_transactions) * 100
-        Arrondi à 1 décimale, défaut 0.0 si aucune transaction.
-        """
-        from ..transactions.models import Transaction, TransactionStatut
-        txs = Transaction.objects.filter(commune=obj)
-        total_count = txs.count()
-        if total_count == 0:
-            return 0.0
+        from .scoring import calculer_score_composite
+        return calculer_score_composite(obj)
 
-        val_count = txs.filter(statut=TransactionStatut.VALIDE).count()
-        score = (val_count / total_count) * 100
-        return round(score, 1)
+
+class ProjetSerializer(serializers.ModelSerializer):
+    commune_nom = serializers.ReadOnlyField(source="commune.nom")
+    bailleur_nom = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Projet
+        fields = [
+            "id", "commune", "commune_nom", "nom", "description",
+            "budget_alloue_fcfa", "taux_execution", "statut",
+            "bailleur", "bailleur_nom", "created_at", "updated_at"
+        ]
+
+    def get_bailleur_nom(self, obj):
+        return obj.bailleur.full_name if obj.bailleur else "Non assigné"
 
 

@@ -32,3 +32,13 @@ class IsAgentOrMaire(BasePermission):
         return request.user.is_authenticated and request.user.role in (
             Role.AGENT_FINANCIER, Role.MAIRE
         )
+
+
+class IsMaireOfCommune(BasePermission):
+    """Vérifie si l'utilisateur est le Maire de la commune de l'objet ciblé."""
+    def has_object_permission(self, request, view, obj):
+        return (
+            request.user.is_authenticated and 
+            request.user.role == Role.MAIRE and 
+            request.user.commune == obj.commune
+        )

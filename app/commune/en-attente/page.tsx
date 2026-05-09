@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Clock, ExternalLink, Loader2, AlertTriangle, Eye, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCommuneTransactions } from "@/lib/hooks/useTransactions";
-import { formatFCFA, formatDateShort } from "@/lib/constants";
+import { formatFCFA, formatDateShort, stripHtml } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import { transactionsApi } from "@/lib/api";
 import Link from "next/link";
@@ -15,8 +15,9 @@ export default function EnAttentePage() {
   const router = useRouter();
   const communeId = user?.commune ?? null;
   const { transactions, loading, error, refetch } = useCommuneTransactions(communeId);
+  const isMaire = user?.role === 'MAIRE';
   const enAttente = transactions.filter(
-    (t) => t.statut === "SOUMIS" || t.statut === "BROUILLON"
+    (t) => t.statut === "SOUMIS" || (!isMaire && t.statut === "BROUILLON")
   );
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -34,8 +35,8 @@ export default function EnAttentePage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-foreground tracking-tight">Validation en attente</h2>
-          <p className="text-muted-foreground mt-1 font-medium text-sm">Transactions soumises au Maire — en attente de signature Polygon</p>
+          <h2 className="text-3xl font-black text-foreground tracking-tight">Suivi des transactions</h2>
+          <p className="text-muted-foreground mt-1 font-medium text-sm">Transactions en attente de validation finale ou de signature Polygon</p>
         </div>
       </div>
 
@@ -83,9 +84,9 @@ export default function EnAttentePage() {
                 <p className="font-bold text-sm">Aucune transaction en attente.</p>
               </div>
             )}
-            {!loading && !error && enAttente.map((tx) => (
+            {!loading && !error && enAttente.map((tx, idx) => (
               <div 
-                key={tx.id} 
+                key={`${tx.id}-${idx}`} 
                 onClick={() => router.push(`/commune/transactions/${tx.id}`)}
                 className="flex items-center justify-between p-6 hover:bg-muted/50 transition-all cursor-pointer group"
               >
@@ -93,10 +94,25 @@ export default function EnAttentePage() {
                   <div className={`p-3 rounded-2xl ${tx.statut === "SOUMIS" ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" : "bg-muted text-muted-foreground"}`}>
                     <Clock className="w-6 h-6" />
                   </div>
-                  <div>
-                    <p className="font-bold text-foreground group-hover:text-primary transition-colors">{tx.description}</p>
-                    <div className="flex items-center gap-3 mt-1.5">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <Badge 
+                        className={`rounded-lg font-black text-[9px] px-2 py-0.5 ${
+                          tx.type === 'RECETTE' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 'bg-rose-500/10 text-rose-600 border-rose-200'
+                        }`}
+                      >
+                        {tx.type}
+                      </Badge>
+                      <p className="font-bold text-foreground group-hover:text-primary transition-colors">
+                        {stripHtml(tx.description)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{tx.categorie}</span>
+                      <span className="w-1 h-1 rounded-full bg-border"></span>
+                      <span className="text-[10px] font-bold text-muted-foreground italic">{tx.soumis_par_detail?.full_name || "Agent"}</span>
+                      <span className="w-1 h-1 rounded-full bg-border"></span>
+                      <span className="text-[10px] font-bold text-muted-foreground">{tx.periode}</span>
                       <span className="w-1 h-1 rounded-full bg-border"></span>
                       <span className="text-[10px] font-bold text-muted-foreground">{formatDateShort(tx.created_at)}</span>
                     </div>

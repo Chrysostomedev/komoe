@@ -1,11 +1,11 @@
 "use client";
 
 import StatsCard from "@/components/ui/StatsCard";
-import { ShieldCheck, ExternalLink, Copy, Loader2, Globe, Lock, ShieldAlert, Cpu } from "lucide-react";
+import { ShieldCheck, ExternalLink, Copy, Loader2, Globe, Lock, ShieldAlert, Cpu, Building2 } from "lucide-react";
 import { useTransactionsList } from "@/lib/hooks/useTransactions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { formatDateShort, formatFCFA, polygonscanTxUrl, ipfsFileUrl } from "@/lib/utils";
+import { formatDateShort, formatFCFA, polygonscanTxUrl, ipfsFileUrl, stripHtml } from "@/lib/utils";
 
 export default function PreuvesPage() {
   const { transactions, loading } = useTransactionsList();
@@ -36,7 +36,7 @@ export default function PreuvesPage() {
         <StatsCard label="Preuves On-Chain" value={txs.length} icon={<Lock className="text-primary" />} />
         <StatsCard label="Documents IPFS" value={txs.filter((t: any) => t.ipfs_hash).length} icon={<Globe className="text-teal-500" />} />
         <StatsCard label="Volume Audité" value={txs.reduce((s: any, t: any) => s + t.montant_fcfa, 0)} isCurrency icon={<ShieldAlert className="text-amber-500" />} />
-        <StatsCard label="Uptime Réseau" value="99.9%" icon={<Cpu className="text-blue-500" />} />
+        <StatsCard label="Mairies Actives" value={new Set(txs.map((t: any) => t.commune)).size} icon={<Building2 className="text-blue-500" />} />
       </div>
 
       <Card className="shadow-2xl border-border rounded-[32px] overflow-hidden border">
@@ -52,7 +52,7 @@ export default function PreuvesPage() {
             <div key={tx.id} className="group p-6 rounded-[24px] bg-white border border-border hover:shadow-xl transition-all hover:border-primary/30">
               <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                 <div>
-                  <p className="font-black text-lg text-foreground group-hover:text-primary transition-colors">{tx.description}</p>
+                  <p className="font-black text-lg text-foreground group-hover:text-primary transition-colors">{stripHtml(tx.description)}</p>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                     {tx.commune_detail?.nom ?? `Commune #${tx.commune}`} · {tx.categorie} · {formatDateShort(tx.validated_at ?? tx.created_at)}
                   </p>

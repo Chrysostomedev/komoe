@@ -3,9 +3,17 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { DepenseForm } from "@/components/agent/DepenseForm";
+import { useAuth } from "@/lib/auth-context";
 
 export default function NouvelleTransaction() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  if (user && user.role !== 'AGENT_FINANCIER') {
+    // Redirection de sécurité frontend si un Maire ou autre tente d'accéder à cette route
+    router.replace('/commune/dashboard');
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">

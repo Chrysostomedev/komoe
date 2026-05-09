@@ -6,7 +6,7 @@ import { useCommunesList } from "@/lib/hooks/useCommunes";
 import { useTransactionsList } from "@/lib/hooks/useTransactions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { formatDateShort, formatFCFA } from "@/lib/utils";
+import { formatDateShort, formatFCFA, stripHtml } from "@/lib/utils";
 
 export default function AlertesPage() {
   const { communes, loading: lcLoading } = useCommunesList();
@@ -95,7 +95,7 @@ export default function AlertesPage() {
             {!loading && enAttente.map((tx: any) => (
               <div key={tx.id} className="flex items-center justify-between p-5 bg-card border border-border rounded-2xl hover:bg-muted/30 transition-all">
                 <div className="min-w-0">
-                  <p className="font-black text-foreground truncate">{tx.description}</p>
+                  <p className="font-black text-foreground truncate">{stripHtml(tx.description)}</p>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mt-1">
                     {tx.commune_detail?.nom ?? `Commune #${tx.commune}`} · {formatDateShort(tx.created_at)}
                   </p>

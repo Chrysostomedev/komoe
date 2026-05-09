@@ -3,7 +3,7 @@
 import DataTable, { ColumnConfig } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Drawer } from "@/components/ui/Drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/Drawer";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -14,14 +14,28 @@ import StatsCard from "@/components/ui/StatsCard";
 import { Receipt, Wallet, ArrowDownRight, Pencil, Trash2, FileText } from "lucide-react";
 import { formatFCFA, stripHtml } from "@/lib/constants";
 
+import { useCommuneDetail } from "@/lib/hooks/useCommunes";
+
 export default function DepensesCommune() {
   const { user } = useAuth();
   const communeId = user?.commune ?? null;
   const { transactions, loading, refetch } = useCommuneTransactions(communeId);
+  const { commune } = useCommuneDetail(communeId);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
+  if (user && user.role !== 'AGENT_FINANCIER') {
+    if (typeof window !== 'undefined') {
+      import("next/navigation").then((mod) => {
+        mod.useRouter().replace('/commune/dashboard');
+      });
+    }
+    return null;
+  }
+  
   const depenses = transactions.filter(t => t.type === 'DEPENSE');
-  const totalDepense = depenses.reduce((acc, t) => acc + t.montant_fcfa, 0);
+  const totalDepense = depenses.reduce((acc, t) => acc + (t.statut === 'VALIDE' ? t.montant_fcfa : 0), 0);
+  const budgetAnnuel = commune?.budget_annuel_fcfa ?? 0;
+  const consommation = budgetAnnuel > 0 ? (totalDepense / budgetAnnuel) * 100 : 0;
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Supprimer ce brouillon ?")) return;
@@ -119,7 +133,7 @@ export default function DepensesCommune() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard label="Dépenses Enregistrées" value={depenses.length} icon={<Receipt className="text-primary" />} />
         <StatsCard label="Total Décaissements" value={totalDepense} isCurrency icon={<ArrowDownRight className="text-rose-500" />} />
-        <StatsCard label="Budget Consommé" value="42%" icon={<Wallet className="text-amber-500" />} />
+        <StatsCard label="Budget Consommé" value={`${consommation.toFixed(1)}%`} icon={<Wallet className="text-amber-500" />} />
       </div>
 
       <DataTable 
@@ -130,15 +144,23 @@ export default function DepensesCommune() {
       />
 
       <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} title="Ajouter une nouvelle dépense">
-        <div className="py-4">
-          <DepenseForm 
-            onSuccess={() => {
-              setIsDrawerOpen(false);
-              refetch();
-            }} 
-            onCancel={() => setIsDrawerOpen(false)}
-          />
-        </div>
+        <DrawerContent className="max-w-2xl mx-auto rounded-t-[32px] border-x border-t border-border bg-card shadow-2xl p-0 overflow-hidden">
+          <div className="mx-auto w-12 h-1.5 bg-muted rounded-full mt-4 mb-2" />
+          <DrawerHeader className="px-10 pt-6 pb-2">
+            <DrawerTitle className="text-2xl font-black uppercase tracking-tight italic">Nouvelle Dépense</DrawerTitle>
+            <DrawerDescription className="text-muted-foreground font-medium italic mt-1">Saisissez les détails de la nouvelle dépense. Un justificatif IPFS sera requis pour la validation blockchain.</DrawerDescription>
+          </DrawerHeader>
+
+          <div className="px-10 py-6">
+            <DepenseForm 
+              onSuccess={() => {
+                setIsDrawerOpen(false);
+                refetch();
+              }} 
+              onCancel={() => setIsDrawerOpen(false)}
+            />
+          </div>
+        </DrawerContent>
       </Drawer>
     </div>
   );

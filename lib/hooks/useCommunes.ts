@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { communesApi, type Commune, type CommuneListFilters } from "@/lib/api";
 
+export type { Commune, CommuneListFilters };
+
 // ─── Hook : liste des communes ────────────────────────────────────────────────
 
 export function useCommunesList(filters?: CommuneListFilters) {
@@ -18,7 +20,11 @@ export function useCommunesList(filters?: CommuneListFilters) {
     setLoading(true);
     setError(null);
     try {
-      const res = await communesApi.list({ search: search || undefined, region: region || undefined });
+      const res = await communesApi.list({ 
+        search: search || undefined, 
+        region: region || undefined,
+        limit: 1000 // Assure de récupérer toutes les communes (201 au total)
+      } as any);
       setCommunes(res.results ?? []);
       setCount(res.count ?? 0);
     } catch {

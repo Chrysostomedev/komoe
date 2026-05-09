@@ -83,7 +83,7 @@ export const TransactionsView = ({ role }: TransactionsViewProps) => {
         return (
           <div>
             <div className="font-semibold text-foreground line-clamp-1">{cleanVal}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{item.categorie}</div>
+            <div className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{item.categorie} · {item.periode}</div>
           </div>
         );
       },

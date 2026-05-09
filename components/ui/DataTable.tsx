@@ -84,9 +84,9 @@ export default function DataTable<T extends { id: string | number }>({
       </div>
 
       <div className="overflow-x-auto px-6 pb-6">
-        <table className="min-w-full border-separate border-spacing-y-0">
+        <table className="min-w-[800px] border-separate border-spacing-y-0">
           <thead>
-            <tr className="bg-slate-100/80 dark:bg-slate-800/80">
+            <tr className="bg-muted/50">
               {columns.map((col, index) => (
                 <th
                   key={String(col.key)}
@@ -100,18 +100,18 @@ export default function DataTable<T extends { id: string | number }>({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="py-10 text-center text-muted-foreground text-sm italic">
-                  Chargement des données...
+                <td colSpan={columns.length} className="py-20 text-center text-muted-foreground text-xs font-black uppercase tracking-[0.2em] animate-pulse">
+                  Synchronisation des données...
                 </td>
               </tr>
             ) : filteredData.length > 0 ? (
               filteredData.map((item) => (
-                <tr key={item.id} className="group transition-colors hover:bg-muted/50">
+                <tr key={item.id} className="group transition-all hover:bg-muted/80 cursor-pointer border-l-4 border-l-transparent hover:border-l-primary">
                   {columns.map((col) => (
-                    <td key={String(col.key)} className="py-5 px-4 text-sm font-bold text-muted-foreground">
+                    <td key={String(col.key)} className="py-6 px-4 text-xs font-medium text-foreground transition-colors">
                       {col.render
                         ? col.render(col.key !== "actions" ? item[col.key as keyof T] : undefined, item)
                         : col.key !== "actions"
@@ -123,7 +123,7 @@ export default function DataTable<T extends { id: string | number }>({
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="py-10 text-center text-muted-foreground text-sm italic">
+                <td colSpan={columns.length} className="py-20 text-center text-muted-foreground text-xs font-black uppercase tracking-[0.2em] italic">
                   {t("table.noData")}
                 </td>
               </tr>

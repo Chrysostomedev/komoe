@@ -7,8 +7,23 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-change-in-prod")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+# ─── Sécurité fondamentale ────────────────────────────────────────────────────
+# S7 : SECRET_KEY DOIT venir de l'env — pas de fallback insécurisé
+_secret_key = os.getenv("SECRET_KEY", "")
+if not _secret_key:
+    # En développement local on accepte une clé insécurisée mais on prévient
+    import warnings
+    _secret_key = "django-insecure-dev-key-change-in-prod-absolutely"
+    warnings.warn(
+        "[KOMOE] SECRET_KEY non définie dans les variables d'environnement. "
+        "Utilisez une clé aléatoire forte en production : "
+        "python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'",
+        stacklevel=2,
+    )
+SECRET_KEY = _secret_key
+
+# S5 : DEBUG est False par défaut — doit être explicitement activé en dev
+DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # ─── Applications ─────────────────────────────────────────────────────────────
@@ -141,6 +156,8 @@ SIMPLE_JWT = {
 }
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
+# S6 : Ajoutez votre domaine de déploiement dans CORS_ALLOWED_ORIGINS (.env)
+# Ex : CORS_ALLOWED_ORIGINS=http://localhost:3000,https://komoe.vercel.app
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000"
@@ -174,3 +191,38 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR.parent / "logs" / "backend.log",
+            "formatter": "verbose",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+

@@ -1,11 +1,11 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .serializers import RegisterSerializer, UserSerializer, UserCreateByAdminSerializer
-from .permissions import IsDGDDL
+from .permissions import IsDGDDL, IsMaireOfCommune
 from ..blockchain.service import BlockchainService
 from .models import Role
 
@@ -39,21 +39,42 @@ class MeView(generics.RetrieveUpdateAPIView):
 
 
 class UserListCreateView(generics.ListCreateAPIView):
-    """DGDDL uniquement : liste et création des comptes institutionnels."""
-    queryset = User.objects.all().select_related("commune")
-    permission_classes = [IsDGDDL]
+    """Liste et création des comptes. Filtré par commune pour les maires/agents."""
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
             return UserCreateByAdminSerializer
         return UserSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+        queryset = User.objects.all().select_related("commune")
+        
+        if user.role == Role.DGDDL:
+            return queryset
+        
+        if user.role in [Role.MAIRE, Role.AGENT_FINANCIER] and user.commune:
+            return queryset.filter(commune=user.commune)
+        
+        return queryset.filter(id=user.id)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # Si c'est un Maire ou Agent qui crée, on force sa commune
+        if user.role in [Role.MAIRE, Role.AGENT_FINANCIER]:
+            if not user.commune:
+                 raise serializers.ValidationError("Vous n'êtes rattaché à aucune commune.")
+            serializer.save(commune=user.commune)
+        else:
+            serializer.save()
+
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """DGDDL : consulter/modifier/désactiver un utilisateur."""
+    """Consulter/modifier/désactiver un utilisateur (DGDDL national, Maire local)."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsDGDDL]
+    permission_classes = [IsAuthenticated, (IsDGDDL | IsMaireOfCommune)]
     lookup_field = "id"
 
 
@@ -90,10 +111,14 @@ def authorize_blockchain(request, id):
 
     try:
         tx_hash = None
+        commune_id = str(user.commune.id) if user.commune else ""
+        if not commune_id:
+             return Response({"error": "L'utilisateur doit être rattaché à une commune."}, status=400)
+
         if user.role == Role.AGENT_FINANCIER:
-            tx_hash = blockchain.attribuer_role_agent(wallet_address)
+            tx_hash = blockchain.attribuer_role_agent(wallet_address, commune_id)
         elif user.role == Role.MAIRE:
-            tx_hash = blockchain.attribuer_role_maire(wallet_address)
+            tx_hash = blockchain.attribuer_role_maire(wallet_address, commune_id)
         else:
             return Response({"error": "Seuls les agents et maires peuvent être autorisés on-chain."}, status=400)
 

@@ -29,15 +29,20 @@ export default function NouvelleRecettePage() {
     periode: new Date().toISOString().slice(0, 7),
   });
 
+  if (user && user.role !== 'AGENT_FINANCIER') {
+    router.replace('/commune/dashboard');
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.commune || user.role !== "MAIRE") { 
-      setApiError("Accès refusé. Seul le Maire peut enregistrer une recette."); 
+    if (!user?.commune || user.role !== "AGENT_FINANCIER") { 
+      setApiError("Accès refusé. Seul l'Agent Financier peut enregistrer une recette."); 
       return; 
     }
 
     if (!isConnected) {
-      setApiError("Veuillez connecter votre portefeuille MetaMask (Maire).");
+      setApiError("Veuillez connecter votre portefeuille MetaMask.");
       return;
     }
     
@@ -74,24 +79,46 @@ export default function NouvelleRecettePage() {
         ipfs_hash: realIpfsHash,
       });
 
-      // 3. Signature Blockchain avec le contrat enregistrerRecette (Seul MAIRE_ROLE autorisé)
+      // 3. Signature Blockchain différenciée selon le rôle
       try {
-        const txHash = await writeContractAsync({
-          address: BUDGET_LEDGER_ADDRESS,
-          abi: BUDGET_LEDGER_ABI,
-          functionName: "enregistrerRecette",
-          args: [
-            created.id,
-            String(created.commune),
-            BigInt(created.montant_fcfa),
-            created.categorie,
-            realIpfsHash || "no-hash",
-          ],
-        });
+        let txHash = "";
+        
+        if (user.role === "AGENT_FINANCIER") {
+          // L'Agent soumet (soumettreRecette)
+          txHash = await writeContractAsync({
+            address: BUDGET_LEDGER_ADDRESS,
+            abi: BUDGET_LEDGER_ABI,
+            functionName: "soumettreRecette",
+            args: [
+              created.id,
+              String(created.commune),
+              BigInt(created.montant_fcfa),
+              created.categorie,
+              realIpfsHash || "no-hash",
+            ],
+          });
+          // Mise à jour du statut en SOUMIS via le hash de soumission
+          await transactionsApi.confirmerHash(created.id, txHash);
+          alert("Succès ! La recette a été soumise pour validation par le Maire. 🚀");
+        } else {
+          // Le Maire enregistre/valide directement (enregistrerRecette)
+          txHash = await writeContractAsync({
+            address: BUDGET_LEDGER_ADDRESS,
+            abi: BUDGET_LEDGER_ABI,
+            functionName: "enregistrerRecette",
+            args: [
+              created.id,
+              String(created.commune),
+              BigInt(created.montant_fcfa),
+              created.categorie,
+              realIpfsHash || "no-hash",
+            ],
+          });
+          // Mise à jour du statut en VALIDE
+          await transactionsApi.confirmerRecette(created.id, txHash);
+          alert("Succès ! La recette est officiellement enregistrée sur Polygon. 🚀");
+        }
 
-        // 4. Confirmation du hash blockchain et passage au statut VALIDE
-        await transactionsApi.confirmerRecette(created.id, txHash);
-        alert("Succès ! La recette est officiellement enregistrée sur Polygon. 🚀");
         router.push("/commune/transactions");
 
       } catch (err: any) {
@@ -110,11 +137,11 @@ export default function NouvelleRecettePage() {
       <div>
         <h2 className="text-3xl font-black text-foreground tracking-tight uppercase italic flex items-center gap-3">
           <Banknote className="w-8 h-8 text-emerald-500" />
-          Enregistrer une Recette
+          {user?.role === 'MAIRE' ? "Enregistrer une Recette" : "Déclarer une Recette"}
         </h2>
         <p className="text-muted-foreground mt-1 font-medium italic flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          Action sécurisée et immuable réservée au Maire
+          Action sécurisée et immuable par {user?.role === 'MAIRE' ? "le Maire" : "l'Agent Financier"}
         </p>
       </div>
 

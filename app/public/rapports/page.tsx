@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { FileText, Download, Calendar, CheckCircle, Loader2, Search, Info } from "lucide-react";
 import { formatFCFA } from "@/lib/constants";
 import { useCommunesList } from "@/lib/hooks/useCommunes";
+import { useTransactionsList } from "@/lib/hooks/useTransactions";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
@@ -23,15 +24,48 @@ const TYPE_COLORS: Record<string, "success" | "secondary" | "outline" | "destruc
 
 export default function RapportsPublicsPage() {
   const { communes } = useCommunesList();
+  const { transactions } = useTransactionsList();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<string | null>(null);
+
   const totalBudget = communes.reduce((s, c) => s + c.budget_annuel_fcfa, 0);
+
+  const filteredRapports = RAPPORTS.filter(r => {
+    const matchesSearch = r.titre.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter ? r.type === filter : true;
+    return matchesSearch && matchesFilter;
+  });
 
   const handleDownload = async (id: string) => {
     setDownloadingId(id);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Génération d'un CSV réel avec les données publiques de la blockchain
+    const headers = ["ID", "Commune", "Type", "Montant FCFA", "Catégorie", "Description", "Statut", "Validation Blockchain (Hash)", "Date"];
+    const rows = transactions.map(tx => [
+      tx.id,
+      tx.commune_detail?.nom || tx.commune,
+      tx.type,
+      tx.montant_fcfa,
+      tx.categorie,
+      tx.description.replace(/,/g, ' '),
+      tx.statut,
+      tx.blockchain_tx_hash_validation || "N/A",
+      tx.created_at
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([`\ufeff${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Komoe_Public_Export_${id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
     setDownloadingId(null);
-    // Simulation
-    alert(`Téléchargement du rapport ${id} démarré...`);
   };
 
   return (
@@ -65,19 +99,40 @@ export default function RapportsPublicsPage() {
       </div>
 
       <Card className="rounded-[32px] overflow-hidden border shadow-xl">
-        <CardHeader className="bg-muted/30 border-b border-border p-6 flex flex-row items-center justify-between">
+        <CardHeader className="bg-muted/30 border-b border-border p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-3 text-foreground font-black uppercase tracking-widest text-sm">
             <FileText className="w-5 h-5" />
             Documents publics disponibles
           </CardTitle>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <input type="text" placeholder="Rechercher..." className="bg-muted/50 border border-border rounded-xl pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-1 focus:ring-primary outline-none" />
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <input 
+                type="text" 
+                placeholder="Rechercher..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2 text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {['Trimestriel', 'Audit', 'Annuel'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilter(filter === t ? null : t)}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${filter === t ? 'bg-primary text-white' : 'bg-card border border-border text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {RAPPORTS.map((r) => (
+            {filteredRapports.length === 0 ? (
+              <div className="p-20 text-center text-muted-foreground font-bold italic">Aucun document ne correspond à votre recherche.</div>
+            ) : filteredRapports.map((r) => (
               <div key={r.id} className="flex items-center justify-between p-6 hover:bg-muted/30 transition-all group">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-primary/5 text-primary rounded-2xl flex items-center justify-center shrink-0 border border-primary/10 group-hover:bg-primary group-hover:text-white transition-all">

@@ -32,31 +32,31 @@ export default function BudgetPage() {
       </div>
 
       {/* Vue commune */}
-      <Card className="bg-gradient-to-r from-[#000040] to-[#000060] text-white border-0">
+      <Card className="bg-primary text-primary-foreground border-0 shadow-2xl">
         <CardContent className="p-6">
           <h3 className="text-xl font-bold mb-4">{commune?.nom ?? "…"} — Budget 2026</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <p className="text-white/60 text-xs">Budget alloué</p>
+              <p className="text-primary-foreground/70 text-xs">Budget alloué</p>
               <p className="font-bold text-lg">{commune ? formatFCFA(commune.budget_annuel_fcfa) : "…"}</p>
             </div>
             <div>
-              <p className="text-white/60 text-xs">Dépensé</p>
-              <p className="font-bold text-lg text-[#cd6133]">{commune ? formatFCFA(commune.budget_depense_fcfa) : "…"}</p>
+              <p className="text-primary-foreground/70 text-xs">Dépensé</p>
+              <p className="font-bold text-lg text-accent">{commune ? formatFCFA(commune.budget_depense_fcfa) : "…"}</p>
             </div>
             <div>
-              <p className="text-white/60 text-xs">Restant</p>
-              <p className="font-bold text-lg text-emerald-400">{commune ? formatFCFA(commune.budget_annuel_fcfa - commune.budget_depense_fcfa) : "…"}</p>
+              <p className="text-primary-foreground/70 text-xs">Restant</p>
+              <p className="font-bold text-lg text-emerald-300">{commune ? formatFCFA(commune.budget_annuel_fcfa - commune.budget_depense_fcfa) : "…"}</p>
             </div>
             <div>
-              <p className="text-white/60 text-xs">Taux exécution</p>
+              <p className="text-primary-foreground/70 text-xs">Taux exécution</p>
               <p className="font-bold text-lg">{execRate}%</p>
             </div>
           </div>
           <div className="mt-4">
-            <div className="w-full bg-card/20 rounded-full h-2">
+            <div className="w-full bg-primary-foreground/20 rounded-full h-2">
               <div
-                className="h-2 rounded-full bg-[#cd6133]"
+                className="h-2 rounded-full bg-accent"
                 style={{ width: `${execRate}%` }}
               />
             </div>
@@ -84,7 +84,7 @@ export default function BudgetPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-[#cd6133]" />
+            <PieChart className="w-5 h-5 text-accent" />
             Dépenses publiques vérifiables
           </CardTitle>
         </CardHeader>

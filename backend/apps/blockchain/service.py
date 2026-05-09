@@ -93,6 +93,20 @@ class BlockchainService:
         )
         return self._send_transaction(func)
 
+    def soumettre_recette(
+        self,
+        recette_id: str,
+        commune_id: str,
+        montant: int,
+        source: str,
+        ipfs_hash: str,
+    ) -> str:
+        contract = self._get_contract()
+        func = contract.functions.soumettreRecette(
+            recette_id, commune_id, montant, source, ipfs_hash
+        )
+        return self._send_transaction(func)
+
     def valider_depense(
         self,
         depense_id: str,
@@ -107,16 +121,22 @@ class BlockchainService:
         )
         return self._send_transaction(func)
 
-    def attribuer_role_agent(self, wallet_address: str) -> str:
-        """Donne le rôle AGENT_ROLE à une adresse (Admin uniquement)."""
+    def attribuer_role_agent(self, wallet_address: str, commune_id: str) -> str:
+        """Donne le rôle AGENT_ROLE à une adresse pour une commune spécifique (Admin uniquement)."""
         contract = self._get_contract()
-        func = contract.functions.attribuerRoleAgent(Web3.to_checksum_address(wallet_address))
+        func = contract.functions.attribuerRoleAgent(
+            Web3.to_checksum_address(wallet_address), 
+            commune_id
+        )
         return self._send_transaction(func)
 
-    def attribuer_role_maire(self, wallet_address: str) -> str:
-        """Donne le rôle MAIRE_ROLE à une adresse (Admin uniquement)."""
+    def attribuer_role_maire(self, wallet_address: str, commune_id: str) -> str:
+        """Donne le rôle MAIRE_ROLE à une adresse pour une commune spécifique (Admin uniquement)."""
         contract = self._get_contract()
-        func = contract.functions.attribuerRoleMaire(Web3.to_checksum_address(wallet_address))
+        func = contract.functions.attribuerRoleMaire(
+            Web3.to_checksum_address(wallet_address),
+            commune_id
+        )
         return self._send_transaction(func)
 
     def enregistrer_recette(
@@ -152,3 +172,26 @@ class BlockchainService:
         contract = self._get_contract()
         func = contract.functions.unpause()
         return self._send_transaction(func)
+
+    def verifier_hash_transaction(self, tx_hash: str, expected_sender: str = None) -> bool:
+        """
+        Vérifie qu'un hash de transaction existe on-chain et est valide.
+        Si expected_sender est fourni, vérifie que c'est bien lui qui a émis la transaction.
+        """
+        try:
+            w3 = self._get_w3()
+            # 1. Récupérer le reçu
+            receipt = w3.eth.get_transaction_receipt(tx_hash)
+            if not receipt or receipt.get("status") != 1:
+                return False
+            
+            # 2. Vérifier l'émetteur si demandé
+            if expected_sender:
+                tx = w3.eth.get_transaction(tx_hash)
+                if not tx or tx.get("from", "").lower() != expected_sender.lower():
+                    return False
+            
+            return True
+        except Exception as e:
+            print(f"Erreur vérification hash {tx_hash}: {str(e)}")
+            return False

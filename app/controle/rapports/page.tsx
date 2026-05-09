@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FileText, Download, Calendar, CheckCircle, Loader2, Plus, Filter, Search, BarChart3 } from "lucide-react";
-import { formatFCFA } from "@/lib/constants";
+import { formatFCFA, stripHtml } from "@/lib/utils";
 import { useCommunesList } from "@/lib/hooks/useCommunes";
 import { useTransactionsList } from "@/lib/hooks/useTransactions";
 import { useState } from "react";
@@ -69,29 +69,72 @@ export default function RapportsPage() {
   const { transactions } = useTransactionsList();
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [dynamicRapports, setDynamicRapports] = useState<any[]>(RAPPORTS);
 
   const totalBudget = communes.reduce((s, c) => s + c.budget_annuel_fcfa, 0);
   const totalDepense = communes.reduce((s, c) => s + c.budget_depense_fcfa, 0);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    // Simulation du temps de calcul serveur
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Logique réelle : On crée un rapport basé sur les transactions actuelles
+    const date = new Date();
+    const newRap = {
+      id: `RAP-DYN-${date.getTime()}`,
+      titre: `Rapport d'activité dynamique — ${date.toLocaleDateString('fr-FR')}`,
+      type: "Dynamique",
+      date: date.toISOString().split('T')[0],
+      statut: "Publié",
+      communes: new Set(transactions.map(t => t.commune)).size,
+      montant: transactions.reduce((s, t) => s + t.montant_fcfa, 0),
+    };
+
+    setDynamicRapports([newRap, ...dynamicRapports]);
     setIsGenerating(false);
-    alert("Rapport généré avec succès ! Le document sera disponible dans quelques instants.");
+    alert("Nouveau rapport généré dynamiquement à partir des données blockchain !");
   };
 
   const handleDownload = async (id: string) => {
     setDownloadingId(id);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setDownloadingId(null);
-    // Simulation download
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Génération d'un CSV réel avec les données de la blockchain
+    const headers = ["ID", "Commune", "Type", "Montant FCFA", "Catégorie", "Description", "Statut", "Blockchain Hash", "Date"];
+    const rows = transactions.map(tx => [
+      tx.id,
+      tx.commune_detail?.nom || tx.commune,
+      tx.type,
+      tx.montant_fcfa,
+      tx.categorie,
+      stripHtml(tx.description).replace(/,/g, ' '),
+      tx.statut,
+      tx.blockchain_tx_hash_validation || "N/A",
+      tx.created_at
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([`\ufeff${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = '#';
-    link.setAttribute('download', `Rapport_${id}.pdf`);
+    link.href = url;
+    link.setAttribute('download', `Komoe_Rapport_${id}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    setDownloadingId(null);
   };
+
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<string | null>(null);
+
+  const filteredRapports = dynamicRapports.filter(r => {
+    const matchesSearch = r.titre.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter ? r.type === filter : true;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8">
@@ -112,7 +155,7 @@ export default function RapportsPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
         {[
-          { label: "Communes couvertes", value: "201", color: "text-primary" },
+          { label: "Communes couvertes", value: communes.length.toString(), color: "text-primary" },
           { label: "Budget national", value: formatFCFA(totalBudget), color: "text-foreground" },
           { label: "Taux d'exécution", value: totalBudget > 0 ? `${((totalDepense / totalBudget) * 100).toFixed(1)}%` : "—", color: "text-emerald-600" },
           { label: "Transactions", value: transactions.length.toString(), color: "text-amber-600" },
@@ -127,19 +170,40 @@ export default function RapportsPage() {
       </div>
 
       <Card className="rounded-[32px] overflow-hidden border shadow-xl">
-        <CardHeader className="bg-muted/30 border-b border-border p-6 flex flex-row items-center justify-between">
+        <CardHeader className="bg-muted/30 border-b border-border p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-3 text-foreground font-black uppercase tracking-widest text-sm">
             <FileText className="w-5 h-5" />
             Tous les rapports disponibles
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="rounded-xl"><Filter size={16} /></Button>
-            <Button variant="ghost" size="sm" className="rounded-xl"><Search size={16} /></Button>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input 
+                type="text"
+                placeholder="Rechercher un rapport..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {['Trimestriel', 'Audit', 'Dynamique'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilter(filter === t ? null : t)}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${filter === t ? 'bg-primary text-white' : 'bg-card border border-border text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {RAPPORTS.map((r) => (
+            {filteredRapports.length === 0 ? (
+              <div className="p-20 text-center text-muted-foreground font-bold italic">Aucun rapport trouvé pour cette recherche.</div>
+            ) : filteredRapports.map((r) => (
               <div
                 key={r.id}
                 className="flex items-center justify-between p-6 hover:bg-muted/30 transition-all group"

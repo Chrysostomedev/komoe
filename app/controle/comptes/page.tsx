@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Users, Search, ShieldCheck, Building2, Globe, Plus, Loader2, CheckCircle2, Mail, User, ShieldAlert, Key, ExternalLink } from "lucide-react";
-import { Drawer } from "@/components/ui/Drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/Drawer";
 import { Button } from "@/components/ui/Button";
 import { FormField, Input, Select } from "@/components/ui/ReusableForm";
 import { authApi, UserProfile, communesApi, Commune } from "@/lib/api";
@@ -275,101 +275,133 @@ export default function ComptesPage() {
 
       {/* Drawer Création */}
       <Drawer isOpen={isDrawerOpen} onClose={() => !isSubmitting && setIsDrawerOpen(false)} title="Création de compte institutionnel">
-        {showSuccess ? (
-          <div className="flex flex-col items-center justify-center py-20 animate-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/30">
-               <CheckCircle2 size={40} />
-            </div>
-            <h3 className="text-xl font-black text-foreground">Compte Créé !</h3>
-            <p className="text-muted-foreground text-sm mt-2 text-center max-w-[250px]">
-              L'utilisateur peut maintenant se connecter. N'oubliez pas de l'autoriser sur la blockchain s'il s'agit d'un décideur.
-            </p>
+        <DrawerContent className="max-w-2xl mx-auto rounded-t-[32px] border-x border-t border-border bg-card shadow-2xl p-0 overflow-hidden">
+          <div className="mx-auto w-12 h-1.5 bg-muted rounded-full mt-4 mb-2" />
+          <DrawerHeader className="px-10 pt-6">
+            <DrawerTitle className="text-2xl font-black uppercase tracking-tight italic">Création de Compte</DrawerTitle>
+            <DrawerDescription className="text-muted-foreground font-medium italic mt-1">Créez un nouvel accès institutionnel. Le mot de passe devra être changé à la première connexion.</DrawerDescription>
+          </DrawerHeader>
+
+          <div className="px-10 py-6">
+            {showSuccess ? (
+              <div className="flex flex-col items-center justify-center py-20 animate-in zoom-in duration-500">
+                <div className="w-20 h-20 bg-emerald-500 text-white rounded-[24px] flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/30 border border-emerald-400/20">
+                   <CheckCircle2 size={40} />
+                </div>
+                <h3 className="text-2xl font-black text-foreground uppercase tracking-tight italic">Compte Créé !</h3>
+                <p className="text-muted-foreground font-medium italic mt-2 text-center max-w-[250px]">
+                  L&apos;utilisateur peut maintenant se connecter. N&apos;oubliez pas de l&apos;autoriser sur la blockchain s&apos;il s&apos;agit d&apos;un décideur.
+                </p>
+              </div>
+            ) : (
+              <form className="space-y-8 pb-10" onSubmit={handleCreateAccount}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField label="Prénom" required>
+                    <Input name="prenom" placeholder="Jean" required disabled={isSubmitting} className="h-14 rounded-2xl border-border focus:ring-primary" />
+                  </FormField>
+                  <FormField label="Nom" required>
+                    <Input name="nom" placeholder="Kouadio" required disabled={isSubmitting} className="h-14 rounded-2xl border-border focus:ring-primary" />
+                  </FormField>
+                </div>
+                
+                <FormField label="Email professionnel" required>
+                  <Input name="email" type="email" placeholder="nom@mairie.ci" required disabled={isSubmitting} className="h-14 rounded-2xl border-border focus:ring-primary" />
+                </FormField>
+    
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField label="Rôle / Fonction" required>
+                    <Select name="role" required disabled={isSubmitting}>
+                      <option value="MAIRE">Maire</option>
+                      <option value="AGENT_FINANCIER">Agent Financier</option>
+                      <option value="DGDDL">DGDDL</option>
+                      <option value="BAILLEUR">Bailleur</option>
+                      <option value="COUR_COMPTES">Cour des Comptes</option>
+                    </Select>
+                  </FormField>
+                  <FormField label="Commune d'affectation">
+                    <Select name="commune" disabled={isSubmitting}>
+                      <option value="">Nationale (Aucune)</option>
+                      {communes.map(c => (
+                        <option key={c.id} value={c.id}>{c.nom}</option>
+                      ))}
+                    </Select>
+                  </FormField>
+                </div>
+    
+                <FormField label="Mot de passe provisoire" required>
+                  <Input name="password" type="password" required disabled={isSubmitting} className="h-14 rounded-2xl border-border focus:ring-primary" />
+                </FormField>
+    
+                <div className="pt-8 border-t border-border flex justify-end gap-4">
+                  <Button variant="ghost" type="button" onClick={() => setIsDrawerOpen(false)} disabled={isSubmitting} className="font-bold rounded-xl h-14 px-8">Annuler</Button>
+                  <Button 
+                    type="submit" 
+                    className="bg-primary hover:bg-primary/90 text-white min-w-[240px] h-14 rounded-2xl font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95" 
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 size={18} className="animate-spin mr-2" /> : "Enregistrer le compte"}
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
-        ) : (
-          <form className="space-y-6" onSubmit={handleCreateAccount}>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Prénom" required>
-                <Input name="prenom" placeholder="Jean" required disabled={isSubmitting} />
-              </FormField>
-              <FormField label="Nom" required>
-                <Input name="nom" placeholder="Kouadio" required disabled={isSubmitting} />
-              </FormField>
-            </div>
-            
-            <FormField label="Email professionnel" required>
-              <Input name="email" type="email" placeholder="nom@mairie.ci" required disabled={isSubmitting} />
-            </FormField>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Rôle / Fonction" required>
-                <Select name="role" required disabled={isSubmitting}>
-                  <option value="MAIRE">Maire</option>
-                  <option value="AGENT_FINANCIER">Agent Financier</option>
-                  <option value="DGDDL">DGDDL</option>
-                  <option value="BAILLEUR">Bailleur</option>
-                  <option value="COUR_COMPTES">Cour des Comptes</option>
-                </Select>
-              </FormField>
-              <FormField label="Commune d'affectation">
-                <Select name="commune" disabled={isSubmitting}>
-                  <option value="">Nationale (Aucune)</option>
-                  {communes.map(c => (
-                    <option key={c.id} value={c.id}>{c.nom}</option>
-                  ))}
-                </Select>
-              </FormField>
-            </div>
-
-            <FormField label="Mot de passe provisoire" required>
-              <Input name="password" type="password" required disabled={isSubmitting} />
-            </FormField>
-
-            <div className="pt-6 border-t border-border flex justify-end space-x-3">
-              <Button variant="ghost" type="button" onClick={() => setIsDrawerOpen(false)} disabled={isSubmitting}>Annuler</Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 px-8 font-black shadow-lg shadow-primary/20" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 size={18} className="animate-spin mr-2" /> : "Enregistrer"}
-              </Button>
-            </div>
-          </form>
-        )}
+        </DrawerContent>
       </Drawer>
-
+    
       {/* Modal Autorisation Blockchain */}
       <Drawer isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} title="Autorisation Blockchain">
-        <div className="space-y-6">
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4">
-            <ShieldCheck className="text-amber-600 w-6 h-6 shrink-0" />
-            <p className="text-xs text-amber-800 font-medium leading-relaxed">
-              Cette action va inscrire l'adresse wallet de l'utilisateur dans le Smart Contract. 
-              Cela lui permettra de signer des transactions officiellement sur Polygon.
-            </p>
-          </div>
+        <DrawerContent className="max-w-2xl mx-auto rounded-t-[32px] border-x border-t border-border bg-card shadow-2xl p-0 overflow-hidden">
+          <div className="mx-auto w-12 h-1.5 bg-muted rounded-full mt-4 mb-2" />
+          <DrawerHeader className="px-10 pt-6">
+            <DrawerTitle className="text-2xl font-black uppercase tracking-tight italic text-emerald-600">Autorisation Blockchain</DrawerTitle>
+            <DrawerDescription className="text-muted-foreground font-medium italic mt-1">Attribuez des droits de signature cryptographique à ce compte institutionnel.</DrawerDescription>
+          </DrawerHeader>
 
-          <div className="space-y-4">
-            <p className="text-sm font-black text-foreground">Utilisateur: {selectedUser?.full_name}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rôle à attribuer: {selectedUser?.role === "MAIRE" ? "MAIRE_ROLE" : "AGENT_ROLE"}</p>
+          <div className="px-10 py-6 space-y-8 pb-10">
+            <div className="p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex gap-4">
+              <ShieldCheck className="text-emerald-600 w-8 h-8 shrink-0" />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-400 mb-1">Avertissement Cryptographique</p>
+                <p className="text-xs text-emerald-800 dark:text-emerald-500 font-medium leading-relaxed italic">
+                  Cette action va inscrire l&apos;adresse wallet de l&apos;utilisateur dans le Smart Contract Komoe. 
+                  Cela lui permettra de signer des transactions financières de manière immuable sur le réseau Polygon.
+                </p>
+              </div>
+            </div>
+    
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest italic">Utilisateur</p>
+                <p className="text-lg font-black text-foreground">{selectedUser?.prenom} {selectedUser?.nom}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest italic">Rôle Blockchain</p>
+                <p className="text-lg font-black text-primary">{selectedUser?.role === "MAIRE" ? "MAIRE_ROLE" : "AGENT_ROLE"}</p>
+              </div>
+            </div>
             
-            <FormField label="Adresse Wallet (0x...)" required>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] italic">Adresse Wallet Publique (0x...)</label>
               <Input 
-                placeholder="0x..." 
+                placeholder="Ex: 0x71C7656EC7ab88b098defB751B7401B5f6d8976F" 
                 value={walletAddress} 
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWalletAddress(e.target.value)}
-                className="font-mono"
+                className="font-mono h-14 rounded-2xl border-border focus:ring-primary text-sm"
               />
-            </FormField>
+            </div>
+    
+            <div className="pt-8 border-t border-border flex justify-end gap-4">
+               <Button variant="ghost" onClick={() => setIsAuthModalOpen(false)} className="font-bold rounded-xl h-14 px-8">Annuler</Button>
+               <Button 
+                onClick={handleAuthorizeBlockchain} 
+                disabled={isSubmitting || !walletAddress.startsWith("0x")}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[240px] h-14 rounded-2xl font-black text-lg shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
+               >
+                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirmer l'inscription"}
+               </Button>
+            </div>
           </div>
-
-          <div className="pt-6 border-t border-border flex justify-end gap-3">
-             <Button variant="ghost" onClick={() => setIsAuthModalOpen(false)}>Annuler</Button>
-             <Button 
-              onClick={handleAuthorizeBlockchain} 
-              disabled={isSubmitting || !walletAddress.startsWith("0x")}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-8 font-black"
-             >
-               {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Confirmer l'inscription"}
-             </Button>
-          </div>
-        </div>
+        </DrawerContent>
       </Drawer>
     </div>
   );

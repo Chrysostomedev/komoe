@@ -46,15 +46,15 @@ export default function StatsCard({ label, value, delta, trend = "up", isCurrenc
       <div className="flex items-end gap-2">
         {showFCFA ? (
           <div className="flex items-baseline gap-1">
-            <h3 className="text-3xl font-black text-foreground dark:text-white tracking-tighter tabular-nums">{displayValue}</h3>
+            <h3 className="text-3xl font-black text-foreground tracking-tighter tabular-nums">{displayValue}</h3>
             <span className="text-[10px] font-bold text-muted-foreground uppercase ml-0.5">FCFA</span>
           </div>
         ) : (
-          <h3 className="text-3xl font-black text-foreground dark:text-white tracking-tighter tabular-nums">{displayValue}</h3>
+          <h3 className="text-3xl font-black text-foreground tracking-tighter tabular-nums">{displayValue}</h3>
         )}
 
         {delta && (
-          <div className={cn("flex items-center gap-1 text-[10px] font-bold mb-1 ml-2 px-1.5 py-0.5 rounded-md", isUp ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-400" : "text-rose-700 bg-rose-100 dark:bg-rose-900/40 dark:text-rose-400")}>
+          <div className={cn("flex items-center gap-1 text-[10px] font-bold mb-1 ml-2 px-1.5 py-0.5 rounded-md", isUp ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400" : "text-rose-600 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400")}>
             {isUp ? <TrendingUp size={12} strokeWidth={3} /> : <TrendingDown size={12} strokeWidth={3} />}
             <span>{delta}</span>
           </div>
@@ -63,7 +63,7 @@ export default function StatsCard({ label, value, delta, trend = "up", isCurrenc
     </div>
   );
 
-  const baseClasses = "relative overflow-hidden bg-card bg-card/50 border border-border dark:border-white/10 p-5 rounded-2xl shadow-sm transition-all duration-300 group";
+  const baseClasses = "relative overflow-hidden bg-card border border-border p-5 rounded-2xl shadow-sm transition-all duration-300 group";
 
   if (href) {
     return (

@@ -56,7 +56,7 @@ export const QuoteItemsInput = ({ name, defaultValue, onChange, disabled }: any)
         </div>
 
         {/* Items */}
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y divide-border">
           {items.map((item, i) => (
             <div key={i} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1.5fr_1fr_auto] gap-3 sm:gap-2 p-4 sm:p-2 sm:px-4 items-center group transition-colors hover:bg-muted/50">
               <input

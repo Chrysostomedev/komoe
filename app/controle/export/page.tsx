@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Download, FileText, Table, CheckCircle } from "lucide-react";
 import { useCommunesList } from "@/lib/hooks/useCommunes";
 import { useTransactionsList } from "@/lib/hooks/useTransactions";
-import { formatFCFA } from "@/lib/constants";
+import { formatFCFA, stripHtml } from "@/lib/utils";
 
 export default function ExportPage() {
   const { communes } = useCommunesList();
@@ -33,7 +33,7 @@ export default function ExportPage() {
   const exportTransactionsCSV = () => exportCSV(
     txs.filter((t) => t.blockchain_tx_hash_validation).map((t) => ({
       id: t.id, type: t.type, montant: t.montant_fcfa, categorie: t.categorie,
-      description: t.description, commune_id: t.commune, statut: t.statut,
+      description: stripHtml(t.description), commune_id: t.commune, statut: t.statut,
       date: t.created_at, tx_hash: t.blockchain_tx_hash_validation,
       ipfs_hash: t.ipfs_hash ?? "",
     })),
@@ -60,7 +60,7 @@ export default function ExportPage() {
       desc: `${txs.length} transactions validées`,
       icone: FileText,
       taille: "~14 KB",
-      action: () => exportCSV(txs.map(t => ({ id: t.id, type: t.type, montant: t.montant_fcfa, statut: t.statut, commune: t.commune, description: t.description })), "komoe_toutes_transactions.csv"),
+      action: () => exportCSV(txs.map(t => ({ id: t.id, type: t.type, montant: t.montant_fcfa, statut: t.statut, commune: t.commune, description: stripHtml(t.description) })), "komoe_toutes_transactions.csv"),
     },
   ];
 

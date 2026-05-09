@@ -22,6 +22,10 @@ contract BudgetLedger is AccessControl, Pausable {
     bytes32 public constant AGENT_ROLE = keccak256("AGENT_ROLE");
     bytes32 public constant MAIRE_ROLE = keccak256("MAIRE_ROLE");
 
+    // ─── Scoping par commune ──────────────────────────────────────────────────
+    // wallet => communeId
+    mapping(address => string) public walletCommune;
+
     // ─── Compteur global de transactions ──────────────────────────────────────
     uint256 private _transactionCount;
 
@@ -64,6 +68,16 @@ contract BudgetLedger is AccessControl, Pausable {
         string categorie,
         string ipfsHash,
         address indexed validePar,
+        uint256 timestamp
+    );
+
+    event RecetteSoumise(
+        string indexed recetteId,
+        string indexed communeId,
+        uint256 montant,
+        string source,
+        string ipfsHash,
+        address indexed parAgent,
         uint256 timestamp
     );
 
@@ -122,6 +136,13 @@ contract BudgetLedger is AccessControl, Pausable {
     ) external whenNotPaused onlyRole(AGENT_ROLE) {
         require(bytes(depenseId).length > 0, "BudgetLedger: depenseId vide");
         require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+        
+        // S8 : Vérification du scope commune
+        require(
+            keccak256(bytes(walletCommune[msg.sender])) == keccak256(bytes(communeId)),
+            "BudgetLedger: cet agent n'est pas autorise pour cette commune"
+        );
+
         require(montant > 0, "BudgetLedger: montant doit etre positif");
         require(bytes(categorie).length > 0, "BudgetLedger: categorie vide");
         require(bytes(ipfsHash).length > 0, "BudgetLedger: ipfsHash vide");
@@ -154,6 +175,13 @@ contract BudgetLedger is AccessControl, Pausable {
     ) external whenNotPaused onlyRole(MAIRE_ROLE) {
         require(bytes(depenseId).length > 0, "BudgetLedger: depenseId vide");
         require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+
+        // S8 : Vérification du scope commune
+        require(
+            keccak256(bytes(walletCommune[msg.sender])) == keccak256(bytes(communeId)),
+            "BudgetLedger: ce maire n'est pas autorise pour cette commune"
+        );
+
         require(montant > 0, "BudgetLedger: montant doit etre positif");
         require(bytes(categorie).length > 0, "BudgetLedger: categorie vide");
         require(bytes(ipfsHash).length > 0, "BudgetLedger: ipfsHash vide");
@@ -170,7 +198,39 @@ contract BudgetLedger is AccessControl, Pausable {
     }
 
     /**
-     * @notice Enregistre une recette communale (MAIRE_ROLE uniquement)
+     * @notice Soumet une recette en attente de validation (AGENT_ROLE uniquement)
+     */
+    function soumettreRecette(
+        string calldata recetteId,
+        string calldata communeId,
+        uint256 montant,
+        string calldata source,
+        string calldata ipfsHash
+    ) external whenNotPaused onlyRole(AGENT_ROLE) {
+        require(bytes(recetteId).length > 0, "BudgetLedger: recetteId vide");
+        require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+        
+        require(
+            keccak256(bytes(walletCommune[msg.sender])) == keccak256(bytes(communeId)),
+            "BudgetLedger: cet agent n'est pas autorise pour cette commune"
+        );
+
+        require(montant > 0, "BudgetLedger: montant doit etre positif");
+        require(bytes(source).length > 0, "BudgetLedger: source vide");
+
+        emit RecetteSoumise(
+            recetteId,
+            communeId,
+            montant,
+            source,
+            ipfsHash,
+            msg.sender,
+            block.timestamp
+        );
+    }
+
+    /**
+     * @notice Enregistre/Valide une recette communale (MAIRE_ROLE uniquement)
      * @dev Émet RecetteEnregistree — recettes fiscales, subventions, dotations État.
      */
     function enregistrerRecette(
@@ -182,6 +242,13 @@ contract BudgetLedger is AccessControl, Pausable {
     ) external whenNotPaused onlyRole(MAIRE_ROLE) {
         require(bytes(recetteId).length > 0, "BudgetLedger: recetteId vide");
         require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+
+        // S8 : Vérification du scope commune
+        require(
+            keccak256(bytes(walletCommune[msg.sender])) == keccak256(bytes(communeId)),
+            "BudgetLedger: ce maire n'est pas autorise pour cette commune"
+        );
+
         require(montant > 0, "BudgetLedger: montant doit etre positif");
         require(bytes(source).length > 0, "BudgetLedger: source vide");
 
@@ -199,21 +266,29 @@ contract BudgetLedger is AccessControl, Pausable {
     // ─── Gestion des rôles ────────────────────────────────────────────────────
 
     /**
-     * @notice Attribue le rôle AGENT_ROLE à un wallet (DEFAULT_ADMIN_ROLE uniquement)
-     * @param wallet Adresse du wallet de l'Agent Financier de la commune
+     * @notice Attribue le rôle AGENT_ROLE à un wallet pour une commune précise
+     * @param wallet Adresse du wallet de l'Agent Financier
+     * @param communeId ID de la commune (string Django)
      */
-    function attribuerRoleAgent(address wallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function attribuerRoleAgent(address wallet, string calldata communeId) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(wallet != address(0), "BudgetLedger: adresse invalide");
+        require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+        
+        walletCommune[wallet] = communeId;
         _grantRole(AGENT_ROLE, wallet);
         emit AgentRoleAttribue(wallet, msg.sender, block.timestamp);
     }
 
     /**
-     * @notice Attribue le rôle MAIRE_ROLE à un wallet (DEFAULT_ADMIN_ROLE uniquement)
-     * @param wallet Adresse du wallet communal du Maire
+     * @notice Attribue le rôle MAIRE_ROLE à un wallet pour une commune précise
+     * @param wallet Adresse du wallet du Maire
+     * @param communeId ID de la commune
      */
-    function attribuerRoleMaire(address wallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function attribuerRoleMaire(address wallet, string calldata communeId) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(wallet != address(0), "BudgetLedger: adresse invalide");
+        require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+        
+        walletCommune[wallet] = communeId;
         _grantRole(MAIRE_ROLE, wallet);
         emit MaireRoleAttribue(wallet, msg.sender, block.timestamp);
     }
