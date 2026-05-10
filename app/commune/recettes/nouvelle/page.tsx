@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FormField, Input, Select, PdfUpload, RichTextEditor } from "@/components/ui/ReusableForm";
 import { Button } from "@/components/ui/Button";
+import { parseGwei } from "viem";
 import { Card, CardContent } from "@/components/ui/Card";
 import { transactionsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -96,6 +97,8 @@ export default function NouvelleRecettePage() {
               created.categorie,
               realIpfsHash || "no-hash",
             ],
+            maxPriorityFeePerGas: parseGwei('50'),
+            maxFeePerGas: parseGwei('50'),
           });
           // Mise à jour du statut en SOUMIS via le hash de soumission
           await transactionsApi.confirmerHash(created.id, txHash);
@@ -113,6 +116,8 @@ export default function NouvelleRecettePage() {
               created.categorie,
               realIpfsHash || "no-hash",
             ],
+            maxPriorityFeePerGas: parseGwei('50'),
+            maxFeePerGas: parseGwei('50'),
           });
           // Mise à jour du statut en VALIDE
           await transactionsApi.confirmerRecette(created.id, txHash);

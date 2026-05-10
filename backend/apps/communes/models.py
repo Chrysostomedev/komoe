@@ -20,6 +20,7 @@ class Commune(models.Model):
     budget_annuel_fcfa = models.BigIntegerField(default=0)
     score_transparence = models.PositiveIntegerField(default=0, help_text="Score de 0 à 100")
     maire_nom = models.CharField(max_length=200, blank=True, default="")
+    blockchain_tx_hash_dotation = models.CharField(max_length=100, blank=True, default="", help_text="Hash de la transaction blockchain de dotation")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

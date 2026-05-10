@@ -30,6 +30,8 @@ class CommuneListView(generics.ListAPIView):
     """Public : liste de toutes les communes actives, avec champs calculés."""
     serializer_class = CommuneSerializer
     permission_classes = [AllowAny]
+    pagination_class = None
+
 
     def get_queryset(self):
         qs = get_optimized_commune_queryset().filter(is_active=True)
@@ -55,6 +57,8 @@ class CommuneAdminView(generics.ListCreateAPIView):
     """DGDDL uniquement : créer/modifier des communes."""
     serializer_class = CommuneSerializer
     permission_classes = [IsDGDDL]
+    pagination_class = None
+
 
     def get_queryset(self):
         return get_optimized_commune_queryset()
@@ -99,3 +103,29 @@ class ProjetDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Projet.objects.all()
     serializer_class = ProjetSerializer
     permission_classes = [IsAuthenticated]
+
+
+class ConfirmerDotationView(generics.UpdateAPIView):
+    """DGDDL : Enregistre le hash blockchain de la dotation."""
+    queryset = Commune.objects.all()
+    serializer_class = CommuneSerializer
+    permission_classes = [IsDGDDL]
+
+    def patch(self, request, *args, **kwargs):
+        commune = self.get_object()
+        tx_hash = request.data.get("blockchain_tx_hash_dotation")
+        if not tx_hash:
+            from rest_framework.response import Response
+            return Response({"error": "Hash manquant"}, status=400)
+        
+        commune.blockchain_tx_hash_dotation = tx_hash
+        commune.save()
+        
+        from rest_framework.response import Response
+        return Response({
+            "status": "success",
+            "commune": commune.nom,
+            "budget": commune.budget_annuel_fcfa,
+            "tx_hash": tx_hash
+        })
+

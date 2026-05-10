@@ -4,7 +4,55 @@ from ..users.serializers import UserSerializer
 from ..communes.serializers import CommuneSerializer
 
 
-class TransactionSerializer(serializers.ModelSerializer):
+class TransactionBaseSerializer(serializers.ModelSerializer):
+    """Base pour la validation du budget."""
+    
+    def validate_budget(self, commune, transaction_type, montant, exclude_id=None):
+        """Vérifie si la dépense respecte le budget annuel de la commune."""
+        if transaction_type == "DEPENSE":
+            from django.db.models import Sum
+            
+            # Calcul de la consommation actuelle (Dépenses validées ou soumises)
+            qs = Transaction.objects.filter(
+                commune=commune,
+                type="DEPENSE",
+                statut__in=[TransactionStatut.SOUMIS, TransactionStatut.VALIDE]
+            )
+            if exclude_id:
+                qs = qs.exclude(id=exclude_id)
+                
+            conso = qs.aggregate(total=Sum("montant_fcfa"))["total"] or 0
+            
+            if conso + montant > commune.budget_annuel_fcfa:
+                reste = commune.budget_annuel_fcfa - conso
+                raise serializers.ValidationError({
+                    "montant_fcfa": f"Dépassement de budget ! Budget annuel : {commune.budget_annuel_fcfa:,} FCFA. "
+                                   f"Déjà consommé : {conso:,} FCFA. Crédits restants : {max(0, reste):,} FCFA. "
+                                   f"Votre saisie ({montant:,} FCFA) dépasse la limite autorisée."
+                })
+
+    def validate(self, data):
+        # Pour les mises à jour, on récupère l'instance
+        instance = getattr(self, 'instance', None)
+        request = self.context.get("request")
+        user = request.user if request else None
+        
+        if not user:
+            return data
+
+        commune = getattr(instance, 'commune', user.commune)
+        if not commune:
+            raise serializers.ValidationError("Compte non rattaché à une commune.")
+
+        # On récupère les valeurs
+        t_type = data.get("type", getattr(instance, 'type', "DEPENSE"))
+        montant = data.get("montant_fcfa", getattr(instance, 'montant_fcfa', 0))
+        
+        self.validate_budget(commune, t_type, montant, exclude_id=instance.id if instance else None)
+        return data
+
+
+class TransactionSerializer(TransactionBaseSerializer):
     soumis_par_detail = UserSerializer(source="soumis_par", read_only=True)
     valide_par_detail = UserSerializer(source="valide_par", read_only=True)
     commune_detail = CommuneSerializer(source="commune", read_only=True)
@@ -32,7 +80,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         ]
 
 
-class TransactionCreateSerializer(serializers.ModelSerializer):
+class TransactionCreateSerializer(TransactionBaseSerializer):
     categorie = serializers.CharField(required=False, allow_blank=True, default="AUTRE")
 
     class Meta:
@@ -43,34 +91,14 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
             "projet"
         ]
 
-    def validate_montant_fcfa(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Le montant doit être positif.")
-        return value
-
-    def validate_categorie(self, value):
-        from .models import CategorieDepense
-        if not value:
-            return CategorieDepense.AUTRE
-        v = str(value).strip().upper()
-        if "INFRA" in v: return CategorieDepense.INFRASTRUCTURE
-        if "SANT" in v: return CategorieDepense.SANTE
-        if "EDUC" in v: return CategorieDepense.EDUCATION
-        if "EAU" in v: return CategorieDepense.EAU_ASSAINISSEMENT
-        if "SEC" in v: return CategorieDepense.SECURITE
-        if "ADMIN" in v: return CategorieDepense.ADMINISTRATION
-        if "AGRI" in v: return CategorieDepense.AGRICULTURE
-        if "CULT" in v: return CategorieDepense.CULTURE_SPORT
-        return v if v in [c[0] for c in CategorieDepense.choices] else CategorieDepense.AUTRE
-
     def create(self, validated_data):
         user = self.context["request"].user
         validated_data["soumis_par"] = user
         validated_data["statut"] = TransactionStatut.BROUILLON
-        # VITAL: Force the transaction's commune to be the user's assigned commune
-        # This prevents an agent from Abobo from creating a transaction for Bassam.
+        
         if user.commune:
             validated_data["commune"] = user.commune
+            
         return super().create(validated_data)
 
 
@@ -123,8 +151,6 @@ class SignalementSerializer(serializers.ModelSerializer):
         return instance
 
 
-# ─── H1 : Preuves signalement ────────────────────────────────────────────────
-
 class PreuveSignalementSerializer(serializers.ModelSerializer):
     class Meta:
         from .models import PreuveSignalement
@@ -132,8 +158,6 @@ class PreuveSignalementSerializer(serializers.ModelSerializer):
         fields = ["id", "signalement", "ipfs_hash", "ipfs_url", "nom_fichier", "type_fichier", "uploaded_at"]
         read_only_fields = ["id", "uploaded_at"]
 
-
-# ─── H3 : Propositions + Votes ───────────────────────────────────────────────
 
 class VotePropositionSerializer(serializers.ModelSerializer):
     citoyen_nom = serializers.CharField(source="citoyen.full_name", read_only=True)
@@ -192,8 +216,6 @@ class PropositionSerializer(serializers.ModelSerializer):
         )
         return instance
 
-
-# ─── H10 : Notifications ─────────────────────────────────────────────────────
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:

@@ -23,11 +23,16 @@ export function useCommunesList(filters?: CommuneListFilters) {
       const res = await communesApi.list({ 
         search: search || undefined, 
         region: region || undefined,
-        limit: 1000 // Assure de récupérer toutes les communes (201 au total)
+        limit: 1000 
       } as any);
-      setCommunes(res.results ?? []);
-      setCount(res.count ?? 0);
+      
+      // Si la pagination est désactivée, res est directement un tableau.
+      // Sinon, c'est un objet avec .results
+      const data = Array.isArray(res) ? res : (res as any).results || [];
+      setCommunes(data);
+      setCount(Array.isArray(res) ? data.length : (res as any).count || data.length);
     } catch {
+
       setError("Impossible de charger les communes.");
     } finally {
       setLoading(false);

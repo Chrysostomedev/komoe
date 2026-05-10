@@ -82,12 +82,21 @@ class TransactionCreateView(generics.CreateAPIView):
         # Récupérer le hash client s'il est déjà fourni (signature MetaMask de l'agent)
         client_tx_hash = self.request.data.get("blockchain_tx_hash_soumission")
         
-        transaction = serializer.save() # Un seul save() suffit ici
+        transaction = serializer.save() 
         
         if client_tx_hash:
             transaction.blockchain_tx_hash_soumission = client_tx_hash
             transaction.statut = TransactionStatut.SOUMIS
             transaction.save(update_fields=["blockchain_tx_hash_soumission", "statut"])
+            
+            # H10 : Notifier le Maire
+            from .notifications import notify_commune_maire
+            notify_commune_maire(
+                commune=transaction.commune,
+                titre="Nouvelle Transaction à Valider ⚖️",
+                message=f"L'agent {self.request.user.full_name} a soumis une transaction de {transaction.montant_fcfa:,} FCFA pour validation.",
+                type_notif="TRANSACTION"
+            )
 
 
 class TransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -159,7 +168,19 @@ def confirmer_hash_soumission(request, pk):
     transaction.statut = TransactionStatut.SOUMIS  # On passe de BROUILLON à SOUMIS
     transaction.save(update_fields=["blockchain_tx_hash_soumission", "statut"])
 
-    return Response({"message": "Hash de soumission enregistré et vérifié sur Polygon.", "transaction": TransactionSerializer(transaction).data})
+    # Notifier le Maire (Audit Liaison)
+    from .notifications import notify_commune_maire
+    notify_commune_maire(
+        commune=transaction.commune,
+        titre="Transaction Signée par l'Agent 🖊️",
+        message=f"Une nouvelle transaction ({transaction.type}) est prête pour votre signature blockchain.",
+        type_notif="TRANSACTION"
+    )
+
+    return Response({
+        "message": "Hash de soumission enregistré et vérifié sur Polygon. Le Maire a été notifié.", 
+        "transaction": TransactionSerializer(transaction).data
+    })
 
 
 @api_view(["PATCH"])
@@ -296,7 +317,7 @@ def rejeter_transaction(request, pk):
 @permission_classes([IsAgentFinancier])
 def creer_recette_brouillon(request):
     """AGENT : Étape 1 - Crée une recette en brouillon."""
-    serializer = TransactionCreateSerializer(data=request.data)
+    serializer = TransactionCreateSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     transaction = serializer.save(
         type="RECETTE",

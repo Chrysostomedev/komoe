@@ -53,24 +53,27 @@ export default function ComptesPage() {
   const fetchCommunes = async () => {
     try {
       const res = await communesApi.list();
-      setCommunes(res.results);
+      const data = Array.isArray(res) ? res : (res as any).results || [];
+      setCommunes(data);
     } catch (err) {
       console.error("Erreur communes:", err);
+      setCommunes([]);
     }
   };
 
   const fetchUsers = async () => {
     try {
       const data = await authApi.list();
-      setUsers(data.results);
+      setUsers(data?.results || []);
     } catch (err) {
       console.error("Erreur fetch users:", err);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = users.filter((u) => {
+  const filtered = (users || []).filter((u) => {
     const fullName = `${u.prenom} ${u.nom}`.toLowerCase();
     const matchSearch =
       fullName.includes(search.toLowerCase()) ||
@@ -79,7 +82,7 @@ export default function ComptesPage() {
     return matchSearch && matchRole;
   });
 
-  const roles = ["Tous", ...Array.from(new Set(users.map((u) => u.role)))];
+  const roles = ["Tous", ...Array.from(new Set((users || []).map((u) => u.role)))];
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,7 +324,7 @@ export default function ComptesPage() {
                   <FormField label="Commune d'affectation">
                     <Select name="commune" disabled={isSubmitting}>
                       <option value="">Nationale (Aucune)</option>
-                      {communes.map(c => (
+                      {(communes || []).map(c => (
                         <option key={c.id} value={c.id}>{c.nom}</option>
                       ))}
                     </Select>

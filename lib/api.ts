@@ -181,6 +181,7 @@ export interface Commune {
   maire_nom: string; is_active: boolean;
   budget_depense_fcfa: number;
   score_transparence: number;
+  blockchain_tx_hash_dotation?: string;
   created_at: string; updated_at: string;
 }
 
@@ -205,11 +206,17 @@ export const communesApi = {
   },
   detail: (id: number) => apiFetch<Commune>(`/api/communes/${id}/`),
   update: (id: number, payload: Partial<Commune>) =>
-    apiFetch<Commune>(`/api/communes/${id}/`, {
+    apiFetch<Commune>(`/api/communes/admin/${id}/`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  confirmerDotation: (id: number, txHash: string) =>
+    apiFetch<any>(`/api/communes/admin/${id}/confirmer-dotation/`, {
+      method: "PATCH",
+      body: JSON.stringify({ blockchain_tx_hash_dotation: txHash }),
+    }),
 };
+
 
 // ─── API Transactions ─────────────────────────────────────────────────────────
 

@@ -13,6 +13,7 @@ class CommuneSerializer(serializers.ModelSerializer):
             "id", "code", "nom", "region", "population", "superficie_km2",
             "budget_annuel_fcfa", "maire_nom", "is_active",
             "budget_depense_fcfa", "score_transparence",
+            "blockchain_tx_hash_dotation",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

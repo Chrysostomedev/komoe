@@ -9,11 +9,16 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/ReusableForm";
 import { Badge } from "@/components/ui/Badge";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/Drawer";
-import { Globe, Banknote, Search, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
+import { Globe, Banknote, Search, AlertTriangle, Loader2, ShieldCheck, Wallet, User } from "lucide-react";
+import { useWriteContract, useAccount } from "wagmi";
+import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
+import { parseGwei } from "viem";
 
 export default function DotationsPage() {
   const [search, setSearch] = useState("");
   const { communes, loading, error, refetch } = useCommunesList();
+  const { isConnected, address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCommune, setSelectedCommune] = useState<Commune | null>(null);
@@ -37,6 +42,11 @@ export default function DotationsPage() {
     e.preventDefault();
     if (!selectedCommune) return;
 
+    if (!isConnected) {
+      alert("Veuillez connecter votre portefeuille MetaMask (Admin DGDDL).");
+      return;
+    }
+
     const parsedBudget = parseInt(newBudget.replace(/\s+/g, ""), 10);
     if (isNaN(parsedBudget) || parsedBudget <= 0) {
       alert("Veuillez entrer un montant valide.");
@@ -45,8 +55,31 @@ export default function DotationsPage() {
 
     setIsSubmitting(true);
     try {
+      // 1. Mise à jour administrative (Backend)
       await communesApi.update(selectedCommune.id, { budget_annuel_fcfa: parsedBudget });
-      alert(`Dotation de ${selectedCommune.nom} mise à jour avec succès.`);
+
+      // 2. Signature Blockchain (Preuve immuable)
+      try {
+        const txHash = await writeContractAsync({
+          address: BUDGET_LEDGER_ADDRESS,
+          abi: BUDGET_LEDGER_ABI,
+          functionName: "enregistrerDotation",
+          args: [
+            String(selectedCommune.id),
+            BigInt(parsedBudget)
+          ],
+          maxPriorityFeePerGas: parseGwei('40'),
+          maxFeePerGas: parseGwei('40'),
+        });
+
+        // 3. Archivage du hash
+        await communesApi.confirmerDotation(selectedCommune.id, txHash);
+        alert(`Dotation signée sur la blockchain ! TX: ${txHash}`);
+      } catch (err: any) {
+        console.error("Signature annulée:", err);
+        alert("Attention : Le budget est mis à jour en base, mais la signature blockchain a échoué ou a été annulée.");
+      }
+
       setIsDrawerOpen(false);
       await refetch();
     } catch (err: any) {
@@ -55,6 +88,7 @@ export default function DotationsPage() {
       setIsSubmitting(false);
     }
   };
+
 
   if (loading && communes.length === 0) {
     return (
@@ -97,46 +131,81 @@ export default function DotationsPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-[32px] overflow-hidden border border-border shadow-2xl bg-card/50 backdrop-blur-xl">
-        <CardHeader className="bg-primary/5 border-b border-border p-6 flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-primary italic">
-            <Globe className="w-5 h-5" /> Registre d'Allocation
-          </CardTitle>
-          <Badge className="bg-primary/20 text-primary border-primary/20">{filtered.length} Communes</Badge>
+      <Card className="rounded-[32px] overflow-hidden border border-border/50 shadow-2xl bg-card/30 backdrop-blur-xl">
+        <CardHeader className="bg-primary/5 border-b border-border/50 p-8 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+               <Globe className="w-6 h-6" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-black uppercase tracking-tight italic text-foreground">
+                Registre National des Communes
+              </CardTitle>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Audit territorial — Côte d&apos;Ivoire</p>
+            </div>
+          </div>
+          <Badge className="bg-primary text-white border-none px-4 py-1.5 rounded-full font-black text-xs shadow-lg shadow-primary/20">
+            {filtered.length} Entités
+          </Badge>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y divide-border">
+          <div className="max-h-[700px] overflow-y-auto custom-scrollbar divide-y divide-border/30">
             {filtered.map((c) => (
-              <div key={c.id} className="p-6 hover:bg-muted/50 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 group">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-muted border border-border rounded-2xl flex items-center justify-center font-black text-xl text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
+              <div key={c.id} className="p-8 hover:bg-primary/[0.02] transition-all flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 group relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300" />
+                
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-muted border border-border/50 rounded-[22px] flex items-center justify-center font-black text-2xl text-primary shadow-sm group-hover:shadow-primary/10 group-hover:border-primary/30 transition-all">
                     {c.nom.slice(0, 2).toUpperCase()}
                   </div>
-                  <div>
-                    <p className="font-black text-lg text-foreground">{c.nom}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest italic">{c.region} — Maire: {c.maire_nom || "Non assigné"}</p>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-black text-xl text-foreground group-hover:text-primary transition-colors tracking-tight">{c.nom}</h3>
+                      {c.blockchain_tx_hash_dotation && (
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] font-black uppercase px-2 rounded-lg flex items-center gap-1">
+                          <ShieldCheck size={10} />
+                          ✅ Dotation Signée
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="rounded-lg border-border/50 bg-muted/30 text-[9px] font-black uppercase px-2">
+                        {c.region}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <User size={10} className="text-primary/60" /> {c.maire_nom || "Siège à pourvoir"}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-8 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="text-left sm:text-right">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 italic">Budget 2026</p>
-                    <p className="text-xl font-black text-foreground tabular-nums">
+                <div className="flex items-center gap-12 w-full lg:w-auto justify-between lg:justify-end bg-muted/20 lg:bg-transparent p-4 lg:p-0 rounded-2xl border border-border/30 lg:border-none">
+                  <div className="text-left lg:text-right">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-60">Allocation Budgétaire</p>
+                    <p className="text-2xl font-black text-foreground tabular-nums tracking-tighter">
                       {formatFCFA(c.budget_annuel_fcfa)}
                     </p>
                   </div>
                   <Button 
                     onClick={() => handleOpenDrawer(c)}
-                    className="rounded-xl font-black h-12 px-6 bg-background border-2 border-primary/20 text-primary hover:bg-primary hover:text-white hover:border-primary shadow-lg transition-all"
+                    className={`rounded-2xl font-black h-14 px-8 shadow-xl transition-all active:scale-95 ${
+                      c.blockchain_tx_hash_dotation 
+                      ? "bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20" 
+                      : "bg-foreground text-background hover:bg-primary hover:text-white shadow-foreground/10 hover:shadow-primary/20"
+                    }`}
                   >
-                    Gérer la Dotation
+                    <Banknote className="w-5 h-5 mr-2" />
+                    {c.blockchain_tx_hash_dotation ? "Ajuster le budget" : "Doter"}
                   </Button>
                 </div>
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="p-12 text-center text-muted-foreground font-bold uppercase tracking-widest">
-                Aucune commune trouvée.
+              <div className="p-20 text-center space-y-4">
+                <Search className="w-12 h-12 text-muted-foreground mx-auto opacity-20" />
+                <p className="text-muted-foreground font-black uppercase tracking-widest text-xs">
+                  Aucune commune ne correspond à votre recherche.
+                </p>
               </div>
             )}
           </div>
@@ -152,9 +221,14 @@ export default function DotationsPage() {
                 <Banknote size={24} />
               </div>
               <div>
-                <DrawerTitle className="text-xl font-black uppercase tracking-tight italic text-primary">Allouer le Budget</DrawerTitle>
+                <DrawerTitle className="text-xl font-black uppercase tracking-tight italic text-primary">
+                  {selectedCommune?.blockchain_tx_hash_dotation ? "Ajuster la Dotation" : "Allouer le Budget"}
+                </DrawerTitle>
                 <DrawerDescription className="text-muted-foreground font-medium italic mt-1">
-                  Définissez la dotation pour {selectedCommune?.nom}
+                  {selectedCommune?.blockchain_tx_hash_dotation 
+                    ? `Modification du budget annuel pour ${selectedCommune?.nom}`
+                    : `Définissez la dotation initiale pour ${selectedCommune?.nom}`
+                  }
                 </DrawerDescription>
               </div>
             </div>
@@ -188,8 +262,15 @@ export default function DotationsPage() {
                 Annuler
               </Button>
               <Button type="submit" disabled={isSubmitting} className="flex-[2] bg-primary hover:bg-primary/90 text-white rounded-xl h-14 font-black shadow-xl shadow-primary/20 transition-all">
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enregistrer"}
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : selectedCommune?.blockchain_tx_hash_dotation ? (
+                  "Mettre à jour & Signer"
+                ) : (
+                  "Signer la Dotation"
+                )}
               </Button>
+
             </DrawerFooter>
           </form>
         </DrawerContent>

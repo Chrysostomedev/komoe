@@ -104,7 +104,7 @@ export const DepenseForm = ({ initialData, onSuccess, onCancel }: DepenseFormPro
         const txHash = await writeContractAsync({
           address: BUDGET_LEDGER_ADDRESS,
           abi: BUDGET_LEDGER_ABI,
-          functionName: form.type === "RECETTE" ? "enregistrerRecette" : "soumettreDepense",
+          functionName: form.type === "RECETTE" ? "soumettreRecette" : "soumettreDepense",
           args: [
             created.id,
             String(created.commune),
@@ -112,6 +112,9 @@ export const DepenseForm = ({ initialData, onSuccess, onCancel }: DepenseFormPro
             created.categorie,
             realIpfsHash || "no-hash",
           ],
+          // On force les frais à 30 Gwei pour éviter l'erreur "gas price below minimum" de Polygon Amoy
+          maxPriorityFeePerGas: parseGwei('30'),
+          maxFeePerGas: parseGwei('30'),
         });
 
         // 4. Patch du hash blockchain

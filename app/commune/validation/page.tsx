@@ -14,6 +14,7 @@ import { BUDGET_LEDGER_ABI, BUDGET_LEDGER_ADDRESS } from "@/lib/blockchain";
 import { Button } from "@/components/ui/Button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/Drawer";
 import { FormField, Input, RichTextEditor } from "@/components/ui/ReusableForm";
+import { parseGwei } from "viem";
 
 export default function ValidationPage() {
   const router = useRouter();
@@ -62,6 +63,9 @@ export default function ValidationPage() {
           tx.categorie,
           tx.ipfs_hash || "no-hash"
         ],
+        // On force les frais à 30 Gwei pour éviter l'erreur "gas price below minimum" de Polygon Amoy
+        maxPriorityFeePerGas: parseGwei('30'),
+        maxFeePerGas: parseGwei('30'),
       });
 
       console.log("Transaction envoyée ! Hash:", hash);

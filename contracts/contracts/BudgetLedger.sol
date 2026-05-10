@@ -102,6 +102,19 @@ contract BudgetLedger is AccessControl, Pausable {
     );
 
     /**
+     * @notice Émis quand la DGDDL alloue une dotation budgétaire à une commune
+     * @param communeId ID de la commune (string Django)
+     * @param montant Montant alloué en FCFA
+     * @param timestamp Horodatage UNIX
+     */
+    event DotationEnregistree(
+        string indexed communeId,
+        uint256 montant,
+        uint256 timestamp
+    );
+
+
+    /**
      * @notice Émis quand un nouveau rôle Agent est attribué à une adresse
      */
     event AgentRoleAttribue(address indexed wallet, address indexed parAdmin, uint256 timestamp);
@@ -301,6 +314,19 @@ contract BudgetLedger is AccessControl, Pausable {
     function revoquerRole(bytes32 role, address wallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revokeRole(role, wallet);
     }
+
+    /**
+     * @notice Enregistre officiellement une dotation budgétaire sur la blockchain
+     * @param communeId ID de la commune (string Django)
+     * @param montant Montant alloué en FCFA
+     */
+    function enregistrerDotation(string calldata communeId, uint256 montant) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(bytes(communeId).length > 0, "BudgetLedger: communeId vide");
+        require(montant > 0, "BudgetLedger: montant doit etre positif");
+        
+        emit DotationEnregistree(communeId, montant, block.timestamp);
+    }
+
 
     // ─── Fonctions admin (pause d'urgence) ────────────────────────────────────
 
