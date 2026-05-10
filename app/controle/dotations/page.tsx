@@ -75,15 +75,16 @@ export default function DotationsPage() {
         // 3. Archivage du hash
         await communesApi.confirmerDotation(selectedCommune.id, txHash);
         alert(`Dotation signée sur la blockchain ! TX: ${txHash}`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Signature annulée:", err);
         alert("Attention : Le budget est mis à jour en base, mais la signature blockchain a échoué ou a été annulée.");
       }
 
       setIsDrawerOpen(false);
       await refetch();
-    } catch (err: any) {
-      alert(err.message || "Erreur lors de la mise à jour de la dotation.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour de la dotation.";
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +108,7 @@ export default function DotationsPage() {
             Gestion des Dotations
           </h2>
           <p className="text-muted-foreground mt-2 font-medium italic">
-            Allocation et supervision du budget annuel de chaque commune de Côte d'Ivoire.
+            Allocation et supervision du budget annuel de chaque commune de Côte d&apos;Ivoire.
           </p>
         </div>
         <div className="flex flex-col items-end">

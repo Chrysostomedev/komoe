@@ -140,7 +140,7 @@ export const authApi = {
 
   list: () => apiFetch<{ results: UserProfile[]; count: number }>("/api/auth/users/"),
   
-  create: (payload: any) => apiFetch<UserProfile>("/api/auth/users/", {
+  create: (payload: Record<string, unknown>) => apiFetch<UserProfile>("/api/auth/users/", {
     method: "POST",
     body: JSON.stringify(payload),
   }),
@@ -211,7 +211,7 @@ export const communesApi = {
       body: JSON.stringify(payload),
     }),
   confirmerDotation: (id: number, txHash: string) =>
-    apiFetch<any>(`/api/communes/admin/${id}/confirmer-dotation/`, {
+    apiFetch<{ message: string }>(`/api/communes/admin/${id}/confirmer-dotation/`, {
       method: "PATCH",
       body: JSON.stringify({ blockchain_tx_hash_dotation: txHash }),
     }),
@@ -458,29 +458,29 @@ export const signalementsApi = {
     const search = new URLSearchParams();
     if (params?.commune) search.set("commune", params.commune.toString());
     if (params?.mes_signalements) search.set("mes_signalements", "true");
-    return apiFetch<any>(`/api/transactions/signalements/?${search.toString()}`);
+    return apiFetch<{ results: Signalement[]; count: number }>(`/api/transactions/signalements/?${search.toString()}`);
   },
   detail: (id: string) => apiFetch<Signalement>(`/api/transactions/signalements/${id}/`),
   create: (data: SignalementCreatePayload) => apiFetch<Signalement>("/api/transactions/signalements/", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Signalement>) => apiFetch<Signalement>(`/api/transactions/signalements/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   voter: (id: string, verdict: "CREDIBLE" | "INFONDE") => 
-    apiFetch<any>(`/api/transactions/signalements/${id}/voter/`, { method: "POST", body: JSON.stringify({ verdict }) }),
+    apiFetch<{ message: string }>(`/api/transactions/signalements/${id}/voter/`, { method: "POST", body: JSON.stringify({ verdict }) }),
   ajouterPreuve: (id: string, data: { ipfs_hash: string; ipfs_url: string; nom_fichier: string; type_fichier: string }) => 
     apiFetch<PreuveSignalement>(`/api/transactions/signalements/${id}/preuves/`, { method: "POST", body: JSON.stringify(data) }),
 };
 
 export const anomaliesApi = {
-  list: () => apiFetch<{ anomalies: any[] }>("/api/transactions/anomalies/"),
+  list: () => apiFetch<{ anomalies: unknown[] }>("/api/transactions/anomalies/"),
 };
 
 export const openDataApi = {
-  getStats: () => apiFetch<any>("/api/transactions/open/stats/"),
+  getStats: () => apiFetch<Record<string, unknown>>("/api/transactions/open/stats/"),
 };
 
 export const projetsApi = {
   list: (communeId?: number) => {
     const url = communeId ? `/api/communes/projets/?commune=${communeId}` : "/api/communes/projets/";
-    return apiFetch<any[]>(url);
+    return apiFetch<unknown[]>(url);
   },
-  getDetail: (id: number) => apiFetch<any>(`/api/communes/projets/${id}/`),
+  getDetail: (id: number) => apiFetch<Record<string, unknown>>(`/api/communes/projets/${id}/`),
 };
