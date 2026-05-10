@@ -48,14 +48,20 @@ class TransactionCommuneListView(generics.ListAPIView):
         )
         
         if user.is_authenticated:
-            if user.role == "AGENT_FINANCIER" and user.commune_id == int(commune_id):
-                # L'agent voit tout (Brouillons inclus)
+            if user.role in ["DGDDL", "COUR_COMPTES"]:
+                # DGDDL et Cour des Comptes : Audit complet
+                pass
+            elif getattr(user, 'journaliste_verifie', False):
+                # Les journalistes vérifiés peuvent voir les transactions soumises pour enquête
+                qs = qs.exclude(statut=TransactionStatut.BROUILLON)
+            elif user.role == "AGENT_FINANCIER" and str(user.commune_id) == str(commune_id):
+                # L'agent voit tout (Brouillons inclus) de sa commune
                 pass 
-            elif user.role == "MAIRE" and user.commune_id == int(commune_id):
+            elif user.role == "MAIRE" and str(user.commune_id) == str(commune_id):
                 # Le maire voit tout SAUF les brouillons
                 qs = qs.exclude(statut=TransactionStatut.BROUILLON)
             else:
-                # Autres utilisateurs authentifiés : uniquement validé
+                # Autres utilisateurs : uniquement validé
                 qs = qs.filter(statut=TransactionStatut.VALIDE)
         else:
             # Public : uniquement validé
@@ -108,17 +114,24 @@ class TransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         qs = Transaction.objects.all().select_related("commune", "soumis_par", "valide_par")
         if user.is_authenticated:
-            if user.role == "MAIRE":
+            if user.role in ["DGDDL", "COUR_COMPTES"]:
+                return qs  # Audit total
+            elif getattr(user, 'journaliste_verifie', False):
+                return qs.exclude(statut=TransactionStatut.BROUILLON)
+            elif user.role == "MAIRE":
                 return qs.filter(commune=user.commune).exclude(statut=TransactionStatut.BROUILLON)
             elif user.role == "AGENT_FINANCIER":
                 from django.db.models import Q
                 return qs.filter(commune=user.commune).filter(Q(soumis_par=user) | ~Q(statut=TransactionStatut.BROUILLON))
-            elif user.role == "DGDDL":
-                return qs  # DGDDL sees everything
         return qs.filter(statut=TransactionStatut.VALIDE)
 
     def perform_update(self, serializer):
         instance = self.get_object()
+        # Sécurité : Seul l'auteur peut modifier
+        if instance.soumis_par != self.request.user and self.request.user.role != "DGDDL":
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Vous n'êtes pas l'auteur de ce brouillon.")
+
         # On ne peut modifier QUE les brouillons
         if instance.statut != TransactionStatut.BROUILLON:
             from rest_framework.exceptions import ValidationError
@@ -248,6 +261,16 @@ def valider_transaction(request, pk):
     transaction.valide_par = request.user
     transaction.validated_at = timezone.now()
     transaction.save()
+
+    # H10 : Notifier le Bailleur si la transaction est liée à un projet
+    if transaction.projet and transaction.projet.bailleur:
+        from .notifications import notify_user
+        notify_user(
+            user=transaction.projet.bailleur,
+            titre="Financement décaissé 💰",
+            message=f"Une dépense de {transaction.montant_fcfa:,} FCFA a été validée pour votre projet '{transaction.projet.nom}'.",
+            type_notif="TRANSACTION"
+        )
 
     # H10 : Notifier l'agent
     from .notifications import notify_user
@@ -568,8 +591,7 @@ def voter_signalement(request, pk):
     if nb_votes >= 20 and pct_credible >= 70:
         # Notifier la DGDDL (H6)
         from .notifications import notify_user
-        from ..users.models import User
-        dgddls = User.objects.filter(role="CONTROLEUR") # DGDDL = CONTROLEUR dans Komoe
+        dgddls = User.objects.filter(role="DGDDL") # DGDDL
         for dg in dgddls:
             notify_user(
                 user=dg,
@@ -839,6 +861,31 @@ def generer_rapport_pdf(request, commune_id):
         return response
     except Commune.DoesNotExist:
         return Response({"error": "Commune introuvable"}, status=404)
+
+
+# ─── H11 : Suivi des Projets Bailleurs ───────────────────────────────────────
+
+from .models import ProjetTransaction
+from .serializers import ProjetTransactionSerializer
+
+class ProjetTransactionListView(generics.ListAPIView):
+    """Bailleur : Voir les transactions réelles liées à un projet spécifique."""
+    serializer_class = ProjetTransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        projet_id = self.request.query_params.get("projet_id")
+        if not projet_id:
+            return ProjetTransaction.objects.none()
+        
+        user = self.request.user
+        qs = ProjetTransaction.objects.filter(projet_id=projet_id).select_related("transaction", "projet")
+        
+        # Sécurité : un bailleur ne voit que ses propres projets
+        if user.role == "BAILLEUR":
+            qs = qs.filter(projet__bailleur=user)
+            
+        return qs
 
 
 # ─── H10 : Notifications API & SSE ──────────────────────────────────────────

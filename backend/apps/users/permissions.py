@@ -17,6 +17,11 @@ class IsMaire(BasePermission):
         return request.user.is_authenticated and request.user.role == Role.MAIRE
 
 
+class IsCourComptes(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == Role.COUR_COMPTES
+
+
 class IsInstitutional(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.is_institutional_role

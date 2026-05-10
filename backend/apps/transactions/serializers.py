@@ -223,3 +223,13 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ["id", "titre", "message", "type_notif", "is_read", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+class ProjetTransactionSerializer(serializers.ModelSerializer):
+    transaction_detail = TransactionSerializer(source="transaction", read_only=True)
+    
+    class Meta:
+        from .models import ProjetTransaction
+        model = ProjetTransaction
+        fields = ["id", "projet", "transaction", "transaction_detail", "montant_attribue", "created_at"]
+        read_only_fields = ["id", "created_at"]

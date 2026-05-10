@@ -24,6 +24,7 @@ from .views import (
     detecter_anomalies,
     open_data_stats,
     simuler_digest_mensuel,
+    ProjetTransactionListView,
 )
 
 urlpatterns = [
@@ -40,6 +41,7 @@ urlpatterns = [
     path("commune/<int:commune_id>/", TransactionCommuneListView.as_view(), name="transactions-commune"),
     path("anomalies/", detecter_anomalies, name="transactions-anomalies"),       # I3
     path("digest/simuler/", simuler_digest_mensuel, name="transactions-digest-simuler"), # I8
+    path("projets/", ProjetTransactionListView.as_view(), name="projets-transactions"), # H11
 
     # ─── Open Data (I5) ────────────────────────────────────────────────
     path("open/stats/", open_data_stats, name="open-data-stats"),

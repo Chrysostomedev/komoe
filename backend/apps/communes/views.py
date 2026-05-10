@@ -104,6 +104,18 @@ class ProjetDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProjetSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Notifier le bailleur de l'évolution du projet
+        if instance.bailleur:
+            from ..transactions.notifications import notify_user
+            notify_user(
+                user=instance.bailleur,
+                titre="Évolution de Projet 📈",
+                message=f"Le projet '{instance.nom}' a été mis à jour (Statut: {instance.get_statut_display()}).",
+                type_notif="SYSTEME"
+            )
+
 
 class ConfirmerDotationView(generics.UpdateAPIView):
     """DGDDL : Enregistre le hash blockchain de la dotation."""

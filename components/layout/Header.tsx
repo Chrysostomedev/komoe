@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 
 import { NotificationBell } from './NotificationBell';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAuth } from '@/lib/auth-context';
 
 interface HeaderProps {
   role: Role;
@@ -30,6 +31,7 @@ const ROLE_HEADER_INFO: Record<Role, { title: string; network: string }> = {
 export const Header = ({ role, onOpenMobile }: HeaderProps) => {
   const info = ROLE_HEADER_INFO[role] ?? { title: 'Utilisateur', network: 'Polygon Amoy' };
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
 
   return (
     <>
@@ -76,7 +78,19 @@ export const Header = ({ role, onOpenMobile }: HeaderProps) => {
 
           <div className="flex items-center gap-3">
             <div className="hidden md:block text-right">
-              <p className="text-sm font-black text-foreground truncate max-w-[160px]">{info.title}</p>
+              <div className="flex items-center justify-end gap-2">
+                {user?.journaliste_verifie && (
+                  <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-none rounded-md px-1.5 h-5 flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter">
+                    <ShieldCheck size={10} /> Presse
+                  </Badge>
+                )}
+                {user?.reputation_score !== undefined && (
+                  <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5 rounded-md px-1.5 h-5 text-[9px] font-black uppercase tracking-tighter">
+                    ⭐ {user.reputation_score}
+                  </Badge>
+                )}
+                <p className="text-sm font-black text-foreground truncate max-w-[160px]">{info.title}</p>
+              </div>
               <div className="flex items-center justify-end gap-1.5">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
