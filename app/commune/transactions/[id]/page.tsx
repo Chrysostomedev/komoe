@@ -50,6 +50,9 @@ export default function TransactionDetailPage() {
           tx.categorie, 
           tx.ipfs_hash || "no-hash"
         ],
+        // Force les frais pour Polygon Amoy (30 Gwei)
+        maxPriorityFeePerGas: BigInt(30000000000),
+        maxFeePerGas: BigInt(30000000000),
       });
 
       // 2. Notification au backend avec le hash du Maire
@@ -94,6 +97,9 @@ export default function TransactionDetailPage() {
           tx.categorie,
           tx.ipfs_hash || "no-hash",
         ],
+        // Force les frais pour Polygon Amoy (30 Gwei)
+        maxPriorityFeePerGas: BigInt(30000000000),
+        maxFeePerGas: BigInt(30000000000),
       });
 
       await transactionsApi.confirmerHash(id, txHash);
