@@ -134,15 +134,15 @@ export const Sidebar = ({ role, isMobileOpen, setIsMobileOpen, isCollapsed, setI
         )}>
           {!isCollapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-sm">K</span>
+              <div className="w-10 h-10 flex items-center justify-center">
+                <img src="/img/logo_elephant.jpeg" alt="KOMOE" className="w-full h-full object-contain drop-shadow-md" />
               </div>
               <h1 className="text-lg font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground">KOMOE</h1>
             </div>
           )}
           {isCollapsed && (
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-lg">
-              <span className="text-white font-black text-sm">K</span>
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src="/img/logo_elephant.jpeg" alt="K" className="w-full h-full object-contain" />
             </div>
           )}
 

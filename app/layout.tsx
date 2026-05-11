@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${geistSans.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="fr" className={`${geistSans.variable} h-full antialiased scroll-smooth`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <BlockchainProvider>

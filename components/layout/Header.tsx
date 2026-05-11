@@ -42,6 +42,7 @@ export const Header = ({ role, onOpenMobile }: HeaderProps) => {
           </Button>
           
           <div className="hidden sm:flex items-center gap-3">
+            <img src="/img/logo_elephant.jpeg" alt="" className="w-6 h-6 object-contain" />
             <span className="text-xs font-black uppercase tracking-widest text-primary italic">
               KOMOE
             </span>

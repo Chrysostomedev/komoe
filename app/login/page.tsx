@@ -164,8 +164,8 @@ function LoginForm() {
         className="text-center mb-8 relative z-10"
       >
         <div className="inline-flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <span className="text-white font-black text-xl">K</span>
+          <div className="w-14 h-14 flex items-center justify-center">
+            <img src="/img/logo_elephant.jpeg" alt="KOMOE" className="w-full h-full object-contain" />
           </div>
           <span className="text-5xl font-extrabold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground">KOMOE</span>
           <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/20 text-accent border border-accent/30 uppercase tracking-wider">Polygon Amoy</span>
@@ -231,7 +231,12 @@ function LoginForm() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5 ml-1">Mot de passe</label>
+                  <div className="flex items-center justify-between mb-1.5 ml-1">
+                    <label className="block text-sm font-medium text-foreground">Mot de passe</label>
+                    <Link href="/forgot-password" title="Fonctionnalité bientôt disponible" className="text-[10px] font-black uppercase text-primary hover:underline">
+                      Mot de passe oublié ?
+                    </Link>
+                  </div>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
@@ -266,16 +271,11 @@ function LoginForm() {
             
             <div className="mt-8 pt-6 border-t border-border flex flex-col items-center gap-4">
               <p className="text-sm text-muted-foreground font-medium text-center">
-                Pas encore membre de la communauté ? <br/>
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-40">Accès Citoyen Libre</span>
+                Pas encore de compte ? <br/>
+                <Link href="/register" className="text-primary font-black hover:underline transition-colors">
+                  S'inscrire maintenant
+                </Link>
               </p>
-              <Link 
-                href="/register" 
-                className="w-full flex items-center justify-center gap-2 py-3.5 border border-primary/20 text-primary hover:bg-primary/5 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-              >
-                <Users className="w-4 h-4" />
-                Créer mon compte citoyen
-              </Link>
             </div>
           </motion.div>
         ) : (
